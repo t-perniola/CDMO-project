@@ -1,12 +1,14 @@
 IDEE:
-1 constraint implicito -> vedere se la somma delle capacità degli oggetti rimanenti sia minore della capacità del rider, per scartare automaticamente i path
+1) constraint implicito -> vedere se la somma delle capacità degli oggetti rimanenti sia minore della capacità del rider, per scartare automaticamente i path
   Presumo che questo possa essere fatto con GAC direttamente, ma una "scrematura" si può ottenere più efficientemente in questo modo, forse.
-2 constraint implicito -> mettere come constraint il fatto che il corriere non può prendere tutta la totalità degli oggetti.
+2) constraint implicito -> mettere come constraint il fatto che il corriere non può prendere tutta la totalità degli oggetti.
   Durante la ricerca il solver se ne accorgerebbe comunque, ma in questo modo accede a un informazione certa prima.
-3 Ordinamento first fail sulla capacità degli item, vedendo prima i rider con le capacità minori
-4 Simmetria Ordinamento -> Se prendo due oggetti uno dopo l'altro in base all'ordinamento, se ho primo oggetto 1,2,3 oppure 1,5,6 è la stessa cosa.
+3) Ordinamento first fail sulla capacità degli item, vedendo prima i rider con le capacità minori
+------------------------------------------------------------------------------------------------------------------------------------------------
+4) Simmetria Ordinamento -> Se prendo due oggetti uno dopo l'altro in base all'ordinamento, se ho primo oggetto 1,2,3 oppure 1,5,6 è la stessa cosa.
   Potrebbe essere una simmetria
-5 Simmetria Courier con uguale capacità o che cambia di poco-> hanno un path intercambiabile, cercare di capire il caso in cui questi non hanno la capacità
+5) Simmetria Courier con uguale capacità o che cambia di poco-> hanno un path intercambiabile, cercare di capire il caso in cui questi non hanno la capacità
   uguale. Una prima idea sarebbe quella che le capacità con una differenza che è minore del più piccolo elemento -> allora sono uguali
   Più ci penso più non si può fare così, perchè comunque ci potrebbero essere incastri diversi di combianzioni
+6) Simmetria matrice D quando questa è simmetrica
 
