@@ -4,5 +4,5 @@ IDEE:
 2 constraint implicito -> mettere come constraint il fatto che il corriere non può prendere tutta la totalità degli oggetti.
   Durante la ricerca il solver se ne accorgerebbe comunque, ma in questo modo accede a un informazione certa prima.
 3 Ordinamento first fail sulla capacità degli item, vedendo prima i rider con le capacità minori
-4 Simmetria -> due rider fanno dei path diversi, se i path che fanno si scambiano tra i rider. La soluzione è uguale.
-  Attualmente sulla modellazione che abbiamo-> funziona!
+4 Simmetria Ordinamento -> Se prendo due oggetti uno dopo l'altro in base all'ordinamento, se ho primo oggetto 1,2,3 oppure 1,5,6 è la stessa cosa.
+  Potrebbe essere una simmetria
