@@ -6,24 +6,13 @@ int: m; % m couriers
 int: n; % n items
 array[1..m] of int: l;     % Each courier i has a maximum load size li
 array[1..n] of int: s;     % sj items sizes
-array[1..n+1, 1..n+1] of int: D;  % Dij distance between distribution point i and distribution point j                 
-
-% I couriers fanno un path tornano in origine e fanno altri path e così via
-% oppure i couriers fanno un unico path e tornano in origine?
-% Secondo me i couriers possono avere più paths
-% Però per semplicità al momento si oconsidererà che ogni courier fa un path da 0 a 0 senza continuare
-
-% Come constraint 
+array[1..n+1, 1..n+1] of int: D;  % Dij distance between distribution point i and distribution point j                
 
 % Variables
 % decision and optimization variables and domains 
 array[1..n] of var 1..m: x;  % Decision variable: which rider picks which object
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
-array[1..m] of var 0..total: max_distance_per_courier; % Maximum distance traveled by each courier
-
-% sto creando una matrice dove ho 0 se un courier non va su un oggetto e ho gli interi che mi certificano
-% l'ordine in cui i courier vanno da n+1 agli items a n+1
-% così poi mi calcolo i path
+array[1..m] of var n+1..total: max_distance_per_courier; % Maximum distance traveled by each courier
 array[1..m,0..n+1] of var 0..n+1: path; % path
 
 
@@ -33,27 +22,29 @@ constraint
         path[i,0] = 1 /\ path[i,n+1] != 0 /\
         forall(j in 1..n)(
             path[i,j] < path[i,n+1] /\
-            if path[i,j] > 0 then path[i,j] > path[i,0] endif
+            if path[i,j] != 0 then path[i,j] > path[i,0] endif
         )
 );
 
-
+/*
 % constraint che tra courier devono essere sempre diversi, se i ha 1 in colonna j allora il resto delle righe è 0
-%constraint forall(j in 1..n)(
-%    forall(i in 1..m)(
-%        (path[i,j] != 0) -> (forall(k in 1..m where k != i)(
-%            path[k,j] = 0
-%        ))
-%    )
-%);
+constraint forall(j in 1..n)(
+    forall(i in 1..m)(
+        (path[i,j] != 0) -> (forall(k in 1..m where k != i)(
+            path[k,j] = 0
+        ))
+    )
+);
+*/
 
 %Traduzione con constraint globale
 constraint forall(j in 1..n)(
     count([path[i,j] | i in 1..m], 0) = m - 1
-);
+)::domain_propagation; % Per propagazione GAC -> RICORDIAMOCI !!!!
 
 
-/*
+/* 
+Tramite il constraint count questo constraint è ridondante
 % constraint at least sulle colonne
 constraint
     forall(j in 1..n+1) (
@@ -86,34 +77,30 @@ constraint forall(i in 1..m)(
     )
 );
 
-% constraint bin_packing_capa(l, x, s);
-% Constraints
+constraint bin_packing_capa(l, x, s);
 % Load constraints for each courier
+/*
 constraint forall(i in 1..m) (
     sum(j in 1..n)(if x[j] == i then s[j] else 0 endif) <= l[i]
 );
+*/
 
+% symmetry breaking constraint
 % successività
 constraint forall(i in 1..m)(
-    forall(j in 0..n)(
-        if path[i,j] != 0 then
-            exists(k in 1..n+1 where k > j /\ path[i,k] != 0)(
-                abs(path[i,j] - path[i,k]) = 1
-            )
-        else
-            true % Non impongo alcuna restrizione se path[i,j] = 0
-        endif
+    forall(j in 1..n where path[i,j] != 0)(
+          exists(k,z in 0..n+1 where k != j /\ k != z /\ z != j /\ path[i,k] != 0 /\ path[i,z] != 0)(
+              abs(path[i,j] - path[i,k]) = 1 /\ abs(path[i,j] - path[i,z]) = 1
+          )
     )
 );
 
 
-
 % valore che mi calcola la lunghezza dei path
-constraint 
-    forall(i in 1..m)(
-          sum(j in 0..n, k in 1..n+1 where path[i,j] != 0 /\ path[i,k] != 0 /\ j < k /\ abs(path[i,k]-path[i,j])==1)(
-                if j == 0 then D[n+1,k] else
-              D[k,j] endif) = max_distance_per_courier[i]
+constraint forall(i in 1..m)(
+    sum(j in 0..n, k in 1..n+1 where path[i,j] != 0 /\ j != k /\ path[i,k] == path[i,j] + 1)(
+        if j == 0 then D[n+1,k] else D[j,k] endif
+    ) = max_distance_per_courier[i]
 );
 
 
