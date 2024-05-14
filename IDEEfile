@@ -4,3 +4,4 @@ Presumo che questo possa essere fatto con GAC direttamente, ma una "scrematura" 
 2 constraint implicito -> mettere come constraint il fatto che il corriere non può prendere tutta la totalità degli oggetti.
 Durante la ricerca il solver se ne accorgerebbe comunque, ma in questo modo accede a un informazione certa prima.
 3 Ordinamento first fail sulla capacità degli item, vedendo prima i rider con le capacità minori
+4 Simmetria -> due rider fanno dei path diversi, se i path che fanno si scambiano tra i rider. La soluzione è uguale.
