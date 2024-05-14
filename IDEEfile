@@ -1,0 +1,3 @@
+IDEE:
+1 constraint implicito -> vedere se la somma delle capacità degli oggetti rimanenti sia minore della capacità del rider, per scartare automaticamente i path
+Presumo che questo possa essere fatto con GAC direttamente, ma una "scrematura" si può ottenere più efficientemente in questo modo, forse.
