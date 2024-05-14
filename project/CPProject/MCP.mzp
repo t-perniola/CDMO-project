@@ -1,0 +1,23 @@
+{
+    "openFiles": [
+        "MCP.mzn",
+        "inst01.dzn",
+        "inst02.dzn",
+        "inst03.dzn",
+        "inst04.dzn",
+        "inst05.dzn"
+    ],
+    "openTab": 0,
+    "projectFiles": [
+        "MCP.mzn",
+        "inst01.dzn",
+        "inst02.dzn",
+        "inst03.dzn",
+        "inst04.dzn",
+        "inst05.dzn",
+        "../Esempi/DisjSched/jobshop.mzn"
+    ],
+    "selectedBuiltinConfigId": "org.gecode.gecode",
+    "selectedBuiltinConfigVersion": "6.3.0",
+    "version": 106
+}
