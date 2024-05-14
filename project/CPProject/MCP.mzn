@@ -13,10 +13,12 @@ array[1..n+1, 1..n+1] of int: D;  % Dij distance between distribution point i an
 % Secondo me i couriers possono avere più paths
 % Però per semplicità al momento si oconsidererà che ogni courier fa un path da 0 a 0 senza continuare
 
+% Come constraint 
+
 % Variables
 % decision and optimization variables and domains 
-array[1..n] of var 1..m: x;  % Decision variable: which courier/rider picks which item
-int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]); % defining the upper bound for distance through the sum of each distances
+array[1..n] of var 1..m: x;  % Decision variable: which rider picks which object
+int: total = 2*sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
 array[1..m] of var 0..total: max_distance_per_courier; % Maximum distance traveled by each courier
 
 % sto creando una matrice dove ho 0 se un courier non va su un oggetto e ho gli interi che mi certificano
@@ -24,14 +26,16 @@ array[1..m] of var 0..total: max_distance_per_courier; % Maximum distance travel
 % così poi mi calcolo i path
 array[1..m,0..n+1] of var 0..n+1: path; % path
 
+
 constraint 
-    forall(i in 1..m)( % for each courier..
-        path[i,0] = 1 /\ path[i,n+1] != 0 /\ % ..set the first column to 1
+    forall(i in 1..m)(
+        path[i,0] = 1 /\ path[i,n+1] != 0 /\
         forall(j in 1..n)(
             path[i,j] < path[i,n+1] /\
             if path[i,j] > 0 then path[i,j] > path[i,0] endif
         )
 );
+
 
 % constraint che tra courier devono essere sempre diversi, se i ha 1 in colonna j allora il resto delle righe è 0
 constraint forall(j in 1..n)(
@@ -41,6 +45,13 @@ constraint forall(j in 1..n)(
         ))
     )
 );
+/*
+Traduzione con constraint globale
+constraint forall(j in 1..n)(
+    count([path[i,j] | i in 1..m], 0) <= m - 1
+);
+*/
+
 
 % constraint at least sulle colonne
 constraint
@@ -48,7 +59,7 @@ constraint
         exists(i in 1..m) (
             path[i,j] != 0
         )
-    );
+);
 
 
 % all different constraint sulle righe
@@ -58,6 +69,12 @@ constraint forall(i in 1..m)(
             path[i,j] != path[i,k]
     )
 );
+/*
+% Traduzione con constraint globale
+constraint forall(i in 1..m)(
+    all_different_except_0([path[i,j] | j in 1..n])
+);
+*/
 
 % Collegamento tra x e i path
 constraint forall(i in 1..m)(
@@ -85,6 +102,7 @@ constraint forall(i in 1..m)(
         endif
     )
 );
+
 
 
 % valore che mi calcola la lunghezza dei path
