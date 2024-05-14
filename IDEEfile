@@ -1,3 +1,5 @@
 IDEE:
 1 constraint implicito -> vedere se la somma delle capacità degli oggetti rimanenti sia minore della capacità del rider, per scartare automaticamente i path
 Presumo che questo possa essere fatto con GAC direttamente, ma una "scrematura" si può ottenere più efficientemente in questo modo, forse.
+2 constraint implicito -> mettere come constraint il fatto che il corriere non può prendere tutta la totalità degli oggetti.
+Durante la ricerca il solver se ne accorgerebbe comunque, ma in questo modo accede a un informazione certa prima.
