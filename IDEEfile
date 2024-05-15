@@ -6,7 +6,8 @@ IDEE:
 3) Ordinamento first fail sulla capacità degli item, vedendo prima i rider con le capacità minori
 ------------------------------------------------------------------------------------------------------------------------------------------------
 4) Simmetria Ordinamento -> Se prendo due oggetti uno dopo l'altro in base all'ordinamento, se ho primo oggetto 1,2,3 oppure 1,5,6 è la stessa cosa.
-  Potrebbe essere una simmetria
+  Potrebbe essere una simmetria. Probabilmente lo è. Inoltre va fatto con il constraint built-in di mini-zinc "lex-ordering"
+  Per efficienza
 5) Simmetria Courier con uguale capacità o che cambia di poco-> hanno un path intercambiabile, cercare di capire il caso in cui questi non hanno la capacità
   uguale. Una prima idea sarebbe quella che le capacità con una differenza che è minore del più piccolo elemento -> allora sono uguali
   Più ci penso più non si può fare così, perchè comunque ci potrebbero essere incastri diversi di combianzioni
