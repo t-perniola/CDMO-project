@@ -1,4 +1,5 @@
 include "globals.mzn"; % Packing constraints da vedere!! 
+% include "lex_lesseq.mzn";
 
 % Data
 % n+1 nella matrice corrisponde all'origin point o
@@ -25,6 +26,7 @@ constraint
             if path[i,j] != 0 then path[i,j] > path[i,0] endif
         )
 );
+
 
 /*
 % constraint che tra courier devono essere sempre diversi, se i ha 1 in colonna j allora il resto delle righe è 0
@@ -77,6 +79,10 @@ constraint forall(i in 1..m)(
     )
 );
 
+/*
+Requires that each item i with weight s[i], be put into x[i] such that the sum 
+of the weights of the items in each x[i] does not exceed the capacity l[i].
+*/
 constraint bin_packing_capa(l, x, s);
 % Load constraints for each courier
 /*
@@ -85,8 +91,10 @@ constraint forall(i in 1..m) (
 );
 */
 
+/*
 % symmetry breaking constraint
 % successività
+% lex_lesseq(array1d(qb), [ qb[j,i] | i,j in reverse(1..n) ]); cambiare con questo
 constraint forall(i in 1..m)(
     forall(j in 1..n where path[i,j] != 0)(
           exists(k,z in 0..n+1 where k != j /\ k != z /\ z != j /\ path[i,k] != 0 /\ path[i,z] != 0)(
@@ -95,11 +103,22 @@ constraint forall(i in 1..m)(
     )
 );
 
-
+% Caso specifico di construzione della lunghezza in base all'ordine lessicigrafico
 % valore che mi calcola la lunghezza dei path
 constraint forall(i in 1..m)(
     sum(j in 0..n, k in 1..n+1 where path[i,j] != 0 /\ j != k /\ path[i,k] == path[i,j] + 1)(
         if j == 0 then D[n+1,k] else D[j,k] endif
+    ) = max_distance_per_courier[i]
+);
+*/
+
+% Caso calcolo path maximum GENERALE, prendendo il minimo
+constraint forall(i in 1..m)(
+    sum(j in 0..n, k in 1..n+1 where j != k /\ path[i,k] == min([path[i,z] | z in 1..n+1, t in 0..n where z != t /\ path[i,z] > path[i,t] /\ path[i,t] != 0]))(
+        if j == 0 then 
+            D[n+1,k] 
+        else D[j,k] 
+        endif 
     ) = max_distance_per_courier[i]
 );
 
