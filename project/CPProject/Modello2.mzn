@@ -15,20 +15,33 @@ int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
 array[1..m] of var n+1..total: max_distance_per_courier; 
 array[1..m,1..n+1] of var 0..n: path; % path mxn dove n in questo caso è l'odine, 0 si è arrivati all'origine
 % path[1,1] = 3 dice che corriere 1 ha preso come primo l'oggetto 3
+array[1..m,1..n] of var bool: y; 
 
 % soluzione del tipo:
-% 146777
-% 235555
+% 146700
+% 235000
 
 constraint forall(i in 1..m)(path[i,n+1]=0);
 
-constraint forall(j in 1..n)(all_different_except_0([path[i,j] | i in 1..m]));
-constraint forall(i in 1..m)(all_different_except_0([path[i,j] | j in 1..n]));
+% constraint forall(j in 1..n)(all_different_except_0([path[i,j] | i in 1..m]));
+% constraint forall(i in 1..m)(all_different_except_0([path[i,j] | j in 1..n]));
+
+constraint forall(j in 1..n)(
+    sum(i in 1..m)(bool2int(y[i,j])) = 1
+);
+
+% Vincolo di channeling tra y e path
+constraint forall(i in 1..m)(
+    forall(j in 1..n)(
+        y[i,j] <-> (sum(z in 1..n)(bool2int(path[i,z] = j)) = 1)
+    )
+);
+             
 
 
-% Collegamento tra x e i path
+% Channeling tra x e i path
 constraint forall(j in 1..n, i in 1..m)(
-          if path[i,j] != 0 then x[path[i,j]] = i endif
+           path[i,j] != 0 <-> x[path[i,j]] = i 
 );
 
 
@@ -37,17 +50,22 @@ constraint bin_packing_capa(l, x, s);
 
 % Caso calcolo path maximum GENERALE, prendendo il minimo
 constraint forall(i in 1..m)(
-    sum(j in 1..n where path[i,j] != 0)(
-        if j == 1 then 
-            D[n+1,path[i,j]]
-        elseif j == n then
-            D[path[i,j], n+1]
+    sum(j in 1..n)(
+        if path[i,j] != 0 then
+          if j == 1 then 
+              D[n+1,path[i,j]]
+          else 
+              D[path[i,j-1],path[i,j]] 
+          endif
+        elseif path[i,j-1] != 0 then
+              D[path[i,j-1],n+1] 
         else 
-            D[path[i,j-1],path[i,j]] 
-        endif 
-    ) = max_distance_per_courier[i]
+              0
+        endif
+    ) = max_distance_per_courier[i] 
 );
 
+      
 
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
@@ -58,7 +76,7 @@ solve minimize max_distance;
 output ["Assignments (courier:item) = \(x)\n",
         "Maximum distance by any courier = \(max_distance)\n"];
 output ["Paths:\n"];
-output [show(path[i,j]) ++ " " ++ if j == n then "\n" else "" endif | i in 1..m, j in 1..n+1];
+output [show(path[i,j]) ++ " " ++ if j == n+1 then "\n" else "" endif | i in 1..m, j in 1..n+1];
 output ["Maximum distance for each courier:\n"];
 output [show(max_distance_per_courier[i]) ++ "\n" | i in 1..m];
 output show(total);

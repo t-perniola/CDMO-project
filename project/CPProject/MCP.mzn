@@ -91,7 +91,7 @@ constraint forall(i in 1..m) (
 );
 */
 
-/*
+
 % symmetry breaking constraint
 % successività
 % lex_lesseq(array1d(qb), [ qb[j,i] | i,j in reverse(1..n) ]); cambiare con questo
@@ -110,8 +110,9 @@ constraint forall(i in 1..m)(
         if j == 0 then D[n+1,k] else D[j,k] endif
     ) = max_distance_per_courier[i]
 );
-*/
 
+
+/*
 % Caso calcolo path maximum GENERALE, prendendo il minimo
 constraint forall(i in 1..m)(
     sum(j in 0..n, k in 1..n+1 where j != k /\ path[i,k] == min([path[i,z] | z in 1..n+1, t in 0..n where z != t /\ path[i,z] > path[i,t] /\ path[i,t] != 0]))(
@@ -121,7 +122,7 @@ constraint forall(i in 1..m)(
         endif 
     ) = max_distance_per_courier[i]
 );
-
+*/
 
 % Optimization target: Minimize the maximum distance traveled by any courier
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
