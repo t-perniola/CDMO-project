@@ -51,9 +51,19 @@ constraint forall(i in 1..m)(
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 % search_annotations
-ann: search_ann = int_search(y, input_order, indomain_min); 
+ann: search_ann;
+% search_ann = int_search(y, input_order, indomain_min); % migliore attualmente
+% search_ann = int_search(y, input_order, indomain_random); 
+% search_ann = int_search(y, first_fail, indomain_min);
+% search_ann = int_search(y, first_fail, indomain_random);
+search_ann = int_search(y, dom_w_deg, indomain_min);
+% search_ann = int_search(y, dom_w_deg, indomain_random);
 
-solve ::search_ann minimize max_distance;
+% solve minimize max_distance; 
+solve 
+  ::search_ann 
+minimize max_distance;
+
 
 % Output results
 output ["Assignments (courier:item) = ", show(x), "\n",
