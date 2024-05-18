@@ -35,6 +35,9 @@ constraint y[2] != n+1;
 constraint y[n+m] != n+1;
 constraint count([y[j] == n+1 | j in 3..n+m-1], true) == m-1;
 
+% constraint aggiungo un constraint che tipo quando cum_cont[i] = 17 in quella posizione c'è un n+1
+constraint forall(i in 1..m-1)(y[cum_cont[i]+i+1] == n+1);
+
 constraint forall(i in 1..m, j in 1..n)(
     (x[j] = i) <-> exists(c in cum_cont[i-1]+1+i..cum_cont[i]+i+1)(y[c] = j)
 );
@@ -69,4 +72,5 @@ minimize max_distance;
 output ["Assignments (courier:item) = ", show(x), "\n",
         "Maximum distance by any courier = ", show(max_distance), "\n",
         "Paths: ", show(y), "\n",
-        "Maximum distance for each courier:\n", show(max_distance_per_courier), "\n"];
+        "Maximum distance for each courier:\n", show(max_distance_per_courier), "\n",
+        "cum_counts and counts: ", show(cum_cont), show(cont)];
