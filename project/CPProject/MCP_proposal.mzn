@@ -17,13 +17,14 @@ array[1..n+1, 1..n+1] of int: D; % array of the distances
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]); % total distance
 
 % Maximum distance traveled by each courier
-array[Couriers] of var 0..total: max_distance_per_courier;
+array[Couriers] of var n+1..total: max_distance_per_courier;
 
 % array of m Couriers and (n+1) timesteps:
 % - the elements of the array are the picked-up items (0..n items) by the m-th courier at the n-th timestep
 % Use 0 as a placeholder for no item
 array[Couriers, Timesteps] of var 0..n: tour;
 
+% CONSTRAINTS
 % starting point = ending point for each courier
 constraint forall(c in Couriers)(
     tour[c,0] = 0 /\ tour[c,n+1] = 0
@@ -31,12 +32,19 @@ constraint forall(c in Couriers)(
 
 % each timestep is different for each courier (excluding 0 placeholders)
 constraint forall(c in Couriers)(
-    alldifferent([tour[c,t] | t in 1..n where tour[c,t] != 0]) 
+    alldifferent([tour[c,t] | t in 1..n where tour[c,t] != 0])
 );
 
 % one item can be picked up only once; this means that one item can be assigned only to one courier
 constraint forall(i in Items)(
     sum(c in Couriers, t in 1..n)(tour[c,t] = i) = 1
+);
+
+% each tour must start at timestep 1 and it cannot stop until it returns to the origin
+constraint forall(c in Couriers)(
+             tour[c, 1] != 0 /\ % Each tour must start at timestep 1
+             forall(t in 2..n)(
+               tour[c,t] != 0 \/ tour[c, t-1] = 0) % No 0 between two consecutive items
 );
 
 % load size of each courier cannot be exceeded by the sum of the picked-up items' sizes
@@ -46,10 +54,22 @@ constraint forall(c in Couriers)(
 
 % maximum distance is respected for each courier
 constraint forall(c in Couriers)(
-    sum(t in 1..n)(
-        D[tour[c,t], tour[c,t+1]]
+    sum(t in 1..n-1)(
+      if t = 0 then % if it starts at the origin namely at timestep 0 ..
+        if t+1 = 0 then
+           D[tour[c,n+1], tour[c,n+1]] % it always be zero
+        else 
+           D[tour[c,n+1], tour[c,t+1]] % the distance matrix has as origin points the n+1 rows/columns
+        endif
+        
+      elseif t+1 = 0 then % if t != 0 but the next one is 0, namely it returns to the origin  ..
+        D[tour[c,t], tour[c,n+1]]
+      else
+          D[tour[c,t], tour[c,t+1]] % Distance between two consecutive points
+      endif
     ) <= max_distance_per_courier[c]
 );
+
 
 % Optimization target: Minimize the maximum distance traveled by any courier
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
@@ -61,5 +81,8 @@ output [
     "Paths:\n",
     concat([show([tour[c,t] | t in Timesteps]) ++ "\n" | c in Couriers]),
     "Maximum distance for each courier:\n",
-    concat([show(max_distance_per_courier[c]) ++ "\n" | c in Couriers])
+    concat([show(max_distance_per_courier[c]) ++ "\n" | c in Couriers]),
+    %"Distances between objects:\n",
+    %concat([show([(tour[c,t], tour[c, t+1]) | t in 1..n-1]) ++ "\n" | c in Couriers]),
+    %concat([show([D[tour[c,t], tour[c, t+1]] | t in 1..n-1]) ++ "\n" | c in Couriers]),
 ];
