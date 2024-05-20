@@ -1,38 +1,32 @@
 include "globals.mzn"; 
 % include "lex_lesseq.mzn";
 
-int: m;
 int: n;
 
 % when we refer to items we're referring to their positions in the cartesian plane;
 % namely, we're assuming a one-by-one correspondence between the two concepts.
-set of int: Couriers = 1..m;
 set of int: Items = 1..n; % the i-th item is in the i-th distribution point
 set of int: Timesteps = 0..n+1; % defines the order of the path that each courier follows
 
-array[Couriers] of int: l;  % Each courier i has a maximum load size li
+int: l;
 array[Items] of int: s;  % items' sizes
 array[1..n+1, 1..n+1] of int: D; % array of the distances
 
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]); % total distance
 
 % Maximum distance traveled by each courier
-array[Couriers] of var n+1..total: max_distance_per_courier;
+var n+1..total: max_distance_per_courier;
 
 % array of m Couriers and (n+1) timesteps:
 % - the elements of the array are the picked-up items (0..n items) by the m-th courier at the n-th timestep
 % Use 0 as a placeholder for no item
-array[Couriers, Timesteps] of var 0..n: tour;
+array[Timesteps] of var 0..n: tour;
 
 % CONSTRAINTS
 % starting point = ending point = n+1 for each courier
-constraint forall(c in Couriers)(
-    tour[c,0] = 0
-);
+constraint tour[0] = 0;
 
-constraint forall(c in Couriers)(
-    tour[c,n+1] = 0
-);
+constraint tour[n+1] = 0;
 
 /*
 % each timestep is different for each courier (excluding 0 placeholders)
@@ -42,24 +36,19 @@ constraint forall(c in Couriers)(
 
 % one item can be picked up only once; this means that one item can be assigned only to one courier
 constraint forall(i in Items)(
-    sum(c in Couriers, t in 1..n)(tour[c,t] = i) = 1
+    sum(t in 1..n)(tour[t] = i) = 1
 );
 
 % each tour must start at timestep 1 and it cannot stop until it returns to the origin
-constraint forall(c in Couriers)(
-             tour[c, 1] != 0  % Each tour must start at timestep 1
-); % this constraint also tells that at least one item should be picked-up by each courier
+constraint tour[1] != 0;
 
-constraint forall(c in Couriers)(
-              forall(t in 2..n)(
-                if tour[c,t] = 0 then tour[c, t+1] = 0 endif)
+constraint forall(t in 2..n)(
+                if tour[t] = 0 then tour[t+1] = 0 endif
 ); % No 0 between two consecutive items
 
 
 % load size of each courier cannot be exceeded by the sum of the picked-up items' sizes
-constraint forall(c in Couriers)(
-    sum(t in 1..n)(s[tour[c, t]]) <= l[c]
-);
+constraint sum(t in 1..n)(s[tour[t]]) <= l;
 
 /*
 % maximum distance is respected for each courier
@@ -82,16 +71,15 @@ constraint forall(c in Couriers)(
 */
 
 % Optimization target: Minimize the maximum distance traveled by any courier
-var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
-solve minimize max_distance;
+solve minimize max_distance_per_courier;
 
 % Output results
 output [
-    "Maximum distance by any courier = ", show(max_distance), "\n",
+    "Maximum distance by any courier = ", show(max_distance_per_courier), "\n",
     "Paths:\n",
-    concat([show([tour[c,t] | t in Timesteps]) ++ "\n" | c in Couriers]),
+    concat([show([tour[t] | t in Timesteps]) ++ "\n"]),
     "Maximum distance for each courier:\n",
-    concat([show(max_distance_per_courier[c]) ++ "\n" | c in Couriers]),
+    concat([show(max_distance_per_courier) ++ "\n"]),
     %"Distances between objects:\n",
     %concat([show([(tour[c,t], tour[c, t+1]) | t in 1..n-1]) ++ "\n" | c in Couriers]),
     %concat([show([D[tour[c,t], tour[c, t+1]] | t in 1..n-1]) ++ "\n" | c in Couriers]),
