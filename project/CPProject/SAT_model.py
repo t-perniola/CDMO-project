@@ -3,10 +3,11 @@ from z3 import Bool, Sum, Int, If, Solver, Or
 
 # TODO dynamic data initializations
 m = 2
-n = 5
+n = 3
 
 COURIERS = range(m)
 ITEMS = range(n)
+TIMESTEPS = range(n+2) # including starting & ending times (that would still coincide in the origin point)
 
 l = [18, 30]
 s = [20, 17, 6]
@@ -19,13 +20,31 @@ D = [[0, 21, 86, 99],
 # VARIABLES
 # creates m x n variables that tell if the item j is assigned to courier i
 x = [[Bool(f"x_{c}_{i}") for c in COURIERS] for i in ITEMS]
+'''
+Example of the matrix 'x':
+x = [1, 0, 0, 1]  # Courier 1: items 1 and 4 are assigned (x_1_1, x_1_4 = True)
+    [0, 1, 0, 0]  # Courier 2: items 2 is assigned
+    [0, 0, 1, 0]  # Courier 3: item 3 is assigned
+'''
 
 # load of each item picked up by each courier
 # - I have to sum only the variables assigned to True, namely only when x_ij = 1
-load = [Sum([If(x[c][i], s[i], 0) for i in ITEMS]) for c in COURIERS]
+load = [Sum([If(x[c][i], s[i], 0) for c in COURIERS]) for i in ITEMS]
+
+# tour matrix: defines the order of the distribution points (where items are) visited
+path = [[Int(f"p_{c}_{t}") for t in TIMESTEPS] for c in COURIERS]
+'''
+Example of the matrix 'tour' (@ stands for the origin point):
+tour = [@, 3, 0, 0, 0, @]  # Courier 1 path:  origin --> 3 --------> origin
+       [@, 2, 0, 0, 0, @]  # Courier 2 path:  origin --> 2 --------> origin
+       [@, 1, 4, 0, 0, @]  # Courier 3 path:  origin --> 1 --> 4 --> origin
+'''
 
 # max distance for each courier
 max_distance = Int("max_dist")
+
+# Define variables for the distance traveled by each courier
+dist = [Int(f'dist_{i}') for i in COURIERS]
 
 # SOLVER INIT
 solver = Solver()
@@ -41,13 +60,14 @@ for i in ITEMS:
 
 # each courier should pick at least one item (redundant)
 for c in COURIERS:
-    solver.add(Or([x[c][i]] for j in ITEMS))
+    solver.add(Or([x[c][i]] for i in ITEMS))
 
-# distances computation
+# distances computation TODO
+
+# minimize max distance among all couriers
 for c in COURIERS:
-    distances = [Sum(If(x[c][i], D[c][i]), 0) for i in ITEMS]
-    solver.add(distances <= max_distance)
+    solver.add(dist[i] <= max_distance)
 
-# OBJECTIVE
+# OBJECTIVE: minimize maximum distance
 solver.minimize(max_distance)
 
