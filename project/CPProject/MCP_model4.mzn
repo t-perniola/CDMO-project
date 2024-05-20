@@ -28,13 +28,14 @@ constraint forall(c in COURIERS)( all_different_except_0([path[c,i] | i in 2..n]
 
 %Define initial node and final node
 constraint forall(c in COURIERS) (path[c,1] = n+1);
-%constraint forall(c in COURIERS, i in 1..n+1) (if path[c,i] != 0 then path[c,i] != path[c,i+1] endif);
+constraint forall(c in COURIERS, i in 1..n+1) (if path[c,i] != 0 then path[c,i] != path[c,i+1] endif);
 constraint forall(c in COURIERS) (path[c,path_length[c]] = n+1);
 
 %Set to zero unvisited nodes
 constraint forall(c in COURIERS)(
               forall(i in path_length[c]+1..n+2)(path[c,i] = 0)
            );
+           
 
 %The items weight cannot exceed the load size
 constraint forall(c in COURIERS) (cur_load[c] <= l[c]);
@@ -56,14 +57,21 @@ constraint forall(c in COURIERS)(
            );
            
 %All the nodes must be visited
-constraint sum(path) - 2*m*(n+1) = SUM_OF_NODES;
-%constraint sum([1 | c in COURIERS, i in 2..n+1 where path[c, i] != 0 /\ path[c, i] != n+1]) = n;
+%constraint sum(path) - 2*m*(n+1) = SUM_OF_NODES;
+constraint sum([1 | c in COURIERS, i in 2..n+1 where path[c, i] != 0 /\ path[c, i] != n+1]) = n;
+
+%The path length of the single courier, in order to be balanced,
+%cannot be longer than n-m
+constraint forall(c in COURIERS)(path_length[c] <= n-m+3);
 
 %**********END REGION CONSTRAINTS********
 
-solve minimize max(total_distance); % + 10*sum(c in COURIERS) (l[c] - cur_load[c]);
+ann: search_ann;
+search_ann = int_search(path, dom_w_deg, indomain_min); 
 
-output ["distance = \(sum(path) - 2*m*(n+1))))\n"] ++
+solve :: search_ann minimize max(total_distance); % + 10*sum(c in COURIERS) (l[c] - cur_load[c]);
+
+output ["distance = \(max(total_distance)))))\n"] ++
        [ show_int(1,path[c,j]) ++ " " ++ 
          if j == n+2 then "\n" else "" endif|
          c in COURIERS, j in 1..n+2 ];
