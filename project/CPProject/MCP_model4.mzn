@@ -1,5 +1,6 @@
 include "globals.mzn";
 include "gecode.mzn";
+include "increasing.mzn";
 
 %**********START REGION VARIABLES**********
 %Instance variables
@@ -57,6 +58,9 @@ constraint forall(c in COURIERS)(
 constraint forall(c in COURIERS)(
               forall(i in 1..path_length[c]-1)(path[c,i] != 0 /\ path[c,i+1] != 0)
            );
+
+constraint increasing(total_distance);
+constraint increasing(path_length);
            
 %All the nodes must be visited
 %constraint sum(path) - 2*m*(n+1) = SUM_OF_NODES;
