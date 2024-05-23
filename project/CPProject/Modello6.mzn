@@ -40,7 +40,10 @@ constraint forall(i in 1..m)(
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 solve 
-:: int_search(y, first_fail, indomain_min) 
+%:: int_search(y, first_fail, indomain_min) 
+:: int_search(y, dom_w_deg, indomain_random) 
+:: restart_luby(10000)
+:: relax_and_reconstruct(y, 83)
 minimize max_distance;
   
 % Output results
