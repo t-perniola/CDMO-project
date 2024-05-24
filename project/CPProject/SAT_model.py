@@ -19,13 +19,23 @@ D = [[0, 21, 86, 99],
 # VARIABLES
 # creates m x (n+2) x n matrix that tell if the item i is assigned to courier c at timestep t
 x = [[[Bool("x_{c}_{t}_{i}") for i in ITEMS] for t in TIMESTEPS] for c in COURIERS]
+'''
+Example of x matrix:
+
+    [0,1,0,1] 
+  [0,0,0,1]0]
+[1,0,1,0]1,0]
+[0,1,0,0] 0]
+[0,0,0,1]0]
+'''
 
 # load of each item picked up by each courier
 # - I have to sum only the variables assigned to True, namely only when x_ij = 1
-load = [Sum([If(x[c][t][i], s[i], 0) for i in ITEMS for t in TIMESTEPS]) for c in COURIERS]
+#load = [Sum([If(x[c][t][i], s[i], 0) for i in ITEMS for t in TIMESTEPS]) for c in COURIERS]
+load = [for c in COURIERS]
 
 print(x)
-print(load)
+#print(load)
 
 # SOLVER INIT
 solver = Solver()
@@ -33,14 +43,29 @@ solver = Solver()
 # CONSTRAINTS
 # each courier should not overload itself, namely it mustn't exceed its load capacity
 for c in COURIERS:
-     solver.add(load[c] <= l[c])
+     #solver.add(load[c] <= l[c])
+     solver.add()
+
+# all items should be picked-up
+for i in ITEMS:
+     solver.add() # n = len(ITEMS)
+
+# each courier picks at most one item at each timestep
+for c in COURIERS:
+     for t in TIMESTEPS:
+          solver.add(AtMost(*[x[c][t][i] for i in ITEMS], 1))
+
+#equivalently...
+for c in COURIERS:
+     for t in TIMESTEPS:
+          for i in ITEMS:
+               for j in (i+1, n):
+                    solve.add(Or(Not(x[c][t][i]), Not(x[c][t][j])))
+
+# each item must be picked up exaclty once at all
+for i in ITEMS:
+    solver.add()
 
 # no zeros between two numbers
 
-# distances computation TODO
-# 1st sum) from origin to the distribution point where x[c][i] is true, namely if the courier c has picked-up the i-th item
-# 2nd sum) from each distribution point to the following one
-# 3rd sum) from the last distribution point back to the origin
-
-
-        
+# distances computation TODO        
