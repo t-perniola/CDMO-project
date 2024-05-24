@@ -29,10 +29,13 @@ Example of x matrix:
 [0,0,0,1]0]
 '''
 
-# load of each item picked up by each courier
-# - I have to sum only the variables assigned to True, namely only when x_ij = 1
-#load = [Sum([If(x[c][t][i], s[i], 0) for i in ITEMS for t in TIMESTEPS]) for c in COURIERS]
-load = [for c in COURIERS]
+# load of each item picked up by each courier (I want a 1D array)
+# in SMT: load = [Sum([If(x[c][t][i], s[i], 0) for i in ITEMS for t in TIMESTEPS]) for c in COURIERS]
+for c in COURIERS:
+     for t in TIMESTEPS:
+          for i in ITEMS:
+               if x[c][t][i]:
+                    ...
 
 print(x)
 #print(load)
@@ -42,25 +45,23 @@ solver = Solver()
 
 # CONSTRAINTS
 # each courier should not overload itself, namely it mustn't exceed its load capacity
-for c in COURIERS:
-     #solver.add(load[c] <= l[c])
-     solver.add()
+#in SMT: for c in COURIERS:
+     #solver.add(load[SSsc] <= l[c])
 
 # all items should be picked-up
-for i in ITEMS:
-     solver.add() # n = len(ITEMS)
+#for i in ITEMS:
+#     solver.add() # n = len(ITEMS)
 
 # each courier picks at most one item at each timestep
 for c in COURIERS:
-     for t in TIMESTEPS:
+     for t in TIMESTEPS: # use * to unpack the single boolean variables
           solver.add(AtMost(*[x[c][t][i] for i in ITEMS], 1))
-
 #equivalently...
 for c in COURIERS:
      for t in TIMESTEPS:
-          for i in ITEMS:
-               for j in (i+1, n):
-                    solve.add(Or(Not(x[c][t][i]), Not(x[c][t][j])))
+          for i in range(n-1):
+               for j in range(i+1, n):
+                    solver.add(Or(Not(x[c][t][i]), Not(x[c][t][j])))
 
 # each item must be picked up exaclty once at all
 for i in ITEMS:
