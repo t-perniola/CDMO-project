@@ -1,4 +1,6 @@
 include "all_different_except.mzn"; 
+include "among.mzn";
+include "circuit.mzn";
 include "gecode.mzn";
 
 % Data
@@ -11,33 +13,38 @@ array[1..n+1, 1..n+1] of int: D;
 %587 6 min
 
 % Variabili
-array[1..n+m+1] of var 1..n+1: y; 
-array[0..m] of var 1..m+n+1: ind; 
-int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
+array[1..n+m+1] of var 1..n+1: y; % tour matrix but flattened to a 1D array which requires the help of the below ..
+array[0..m] of var 1..m+n+1: ind; % .. index array which stores the indices of the beginning of each courier's tour
+int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]); 
 array[1..m] of var n+1..total-n: max_distance_per_courier; 
 %array[1..m] of var n*2..200*n: max_distance_per_courier; 
 % ho provato una euristica, ma è risultata più veloce questa con il total, si accettano suggerimenti
 
 % Constraints 
-constraint y[1] = n+1;
+constraint y[1] = n+1; 
 constraint y[n+m+1] = n+1;
 constraint y[2] != n+1;
 constraint y[n+m] != n+1;
 constraint ind[0] = 1;
 constraint ind[m] = n+m+1;
 
-constraint forall(i in 1..m-1) (y[ind[i]] == n+1);
+constraint forall(i in 1..m-1) (y[ind[i]] == n+1); % the origin is where each courier starts its tour
 constraint forall(i in 3..n+m-1)(y[i] == n+1 -> y[i-1] != n+1 /\ y[i+1] != n+1);
 constraint forall(i in 0..m-1)(ind[i] + ceil(n/m) <= ind[i+1] /\ ind[i+1]-ind[i]-1 <= n-m+1)::domain_propagation;
+% heuristic: the length of each courier's path is bounded in order to maintain a balancing among each of them
+% implicit: a courier cannot pick ALL the items
 
-constraint all_different_except(y,{n+1})::domain_propagation;
+constraint all_different_except(y,{n+1})::domain_propagation; % all the distribution points visited should be different except the origin, which is visited twice by each courier
 
-constraint forall(i in 1..m)(sum(c in ind[i-1]+1..ind[i]-1)(s[y[c]]) <= l[i]);
+constraint forall(i in 1..m)(sum(c in ind[i-1]+1..ind[i]-1)(s[y[c]]) <= l[i]); % load size cannot be exceeded
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Più constraint impliciti IDEE?
-%
-%
+
+% all items must be picked-up
+constraint forall(i in 1..n)(
+    among(1, y, {i})
+);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % distance
@@ -47,6 +54,7 @@ constraint forall(i in 1..m)(
     ) = max_distance_per_courier[i]
 );
 
+% Objective function
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 solve 
