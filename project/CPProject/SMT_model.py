@@ -55,15 +55,11 @@ dist = [Int(f'dist_{c}') for c in COURIERS]
 # path length for each courier
 path_length = [Int(f"len_{c}") for c in COURIERS]
 
-# HELPER functions
+# HELPER function
 # - all_different
 def distinct_except(values, forbidden_values):
     non_forbidden_values = [v for v in values if v not in forbidden_values]
     return Distinct(non_forbidden_values) # enforcing uniqueness
-
-# - among
-def among(value_set, value):
-    return Or([value == v for v in value_set])
 
 # OPTIMIZING SOLVER INIT
 solver = Solver()
@@ -81,6 +77,8 @@ for c in COURIERS:
 # path length should range between 3 and max_nodes
 for c in COURIERS:
     solver.add(And(path_length[c] >= 3, path_length[c] <= max_nodes))
+for c in COURIERS:
+    solver.add(Sum([If(b_path[c][i], 1, 0) for i in NODES]) <= max_nodes)
 
 # Couriers cannot visit same node twice (nor stay in the same node)
 for c in COURIERS:
@@ -104,27 +102,23 @@ for c1 in COURIERS:
                 <= Sum([b_path[c2][j]*s[j] for j in NODES]))
 
 # All the couriers must visit different nodes
-for c in COURIERS:
-    solver.add(distinct_except([path[c][j] for j in range(max_nodes)], [0, n+1]))
+#for c in COURIERS:
+#    solver.add(distinct_except([path[c][j] for j in range(max_nodes)], [0, n+1]))
 
+# exactly one item assignment to a courier
 for i in NODES:
     solver.add(Sum([If(b_path[c][i], 1 , 0) for c in COURIERS]) == 1)
-
-for j in NODES:
-    solver.add(Or([b_path[c][j] == True for c in COURIERS]))
-
-# The path length of the single courier, in order to be balanced, cannot be longer than n-m
-for c in COURIERS:
-    solver.add(path_length[c] <= max_nodes)
-
-for c in COURIERS:
-    solver.add(Sum([If(b_path[c][i] == True, 1, 0) for i in NODES]) <= max_nodes)
 
 # CHECK SATISFIABILITY
 if solver.check() == sat:
     model = solver.model()
 
- ############################################################################à
+    path_values = [[model[path[c][j]] for j in range(max_nodes)] for c in COURIERS]
+    print("\nPaths:")
+    for c in COURIERS:
+        print(f"Courier {c}: {path_values[c]}")
+    
+ ############################################################################
 
     # ADDITIONAL CONSTRAINTS unfeasible before
     # Define final node
@@ -134,16 +128,11 @@ if solver.check() == sat:
 
     # Channeling constraint
     for c in COURIERS:
-        path_length_value = model.eval(path_length[c])
-        for i in NODES:
-            solver.add(Implies(b_path[c][i], Or([path[c][j] == i for j in range(1, path_length_value.as_long() + 1)])))
-            solver.add(Implies(Or([path[c][j] == i for j in range(1, path_length_value.as_long() + 1)]), b_path[c][i]))
-
-    # Distance computation
-    for c in COURIERS:
         path_length_value = model.eval(path_length[c]).as_long()
-        total_distance_expr = Sum([D[model.eval(path[c][j]).as_long()-1][model.eval(path[c][j+1]).as_long()-1] for j in range(path_length_value)])
-        solver.add(total_distance[c] == total_distance_expr)
+        for i in NODES:
+            exists_in_path = Or([path[c][j] == i for j in range(1, path_length_value + 1)])
+            solver.add(And(Implies(b_path[c][i], exists_in_path), Implies(exists_in_path, b_path[c][i])))
+            # double implication <->
 
     # All the adjacent values until path_length must be different from 0
     for c in COURIERS:
@@ -151,27 +140,40 @@ if solver.check() == sat:
         for j in range(1, path_length_value.as_long()):
             solver.add(And(model[path[c][j]] != 0, model[path[c][j+1]] != 0))
 
-    # Load size constraint
-    for c in COURIERS:
-        path_length_value = model.eval(path_length[c])
-        solver.add(Sum([s[model[path[c][j]].as_long()] for j in range(1, path_length_value.as_long())]) <= l[c])
-
     # Rerun the solver
     if solver.check() == sat:
         model = solver.model()
 
         path_values = [[model[path[c][j]] for j in range(max_nodes)] for c in COURIERS]
+        path_length_value = [model.eval(path_length[c]).as_long() for c in COURIERS]
+
         print("\nPaths:")
         for c in COURIERS:
             print(f"Courier {c}: {path_values[c]}")
 
-        print("\nItem Assignments (T/F):")
+        # Recompute total distances based on the updated model
         for c in COURIERS:
-            print(f"Courier {c}: {[model.eval(b_path[c][i]) for i in NODES]}")
+            total_distance_expr = Sum([D[model.eval(path[c][j]).as_long()-1][model.eval(path[c][j+1]).as_long()-1] for j in range(path_length_value[c])])
+            solver.add(total_distance[c] == total_distance_expr)
+        
+        if solver.check() == sat:
+            model = solver.model()
 
-        print("\nTotal distances:")
-        for c in COURIERS:
-            print(f"Courier {c}: {model.eval(total_distance[c])}")
+            path_values = [[model[path[c][j]] for j in range(max_nodes)] for c in COURIERS]
+            print("\nPaths:")
+            for c in COURIERS:
+                print(f"Courier {c}: {path_values[c]}")
+     
+            print("\nItem Assignments (T/F):")
+            for c in COURIERS:
+                print(f"Courier {c}: {[model.eval(b_path[c][i]) for i in NODES]}")
+
+            print("\nTotal distances:")
+            for c in COURIERS:
+                print(f"Courier {c}: {model.eval(total_distance[c])}")
+
+        else:
+            print("The model is unsatisfiable after updating total distances.")
 
     else:
         print("The model is unsatisfiable after adding new constraints.")
