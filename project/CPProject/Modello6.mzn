@@ -31,6 +31,9 @@ constraint forall(i in 1..m-1) (y[ind[i]] == n+1);
 constraint forall(i in 3..n+m-1)(y[i] == n+1 -> y[i-1] != n+1 /\ y[i+1] != n+1);
 constraint forall(i in 0..m-1)(ind[i] + ceil(n/m) <= ind[i+1] /\ ind[i+1]-ind[i]-1 <= n-m+1)::domain_propagation;
 
+% Ho aggiunto questo constraint
+constraint forall(j in 1..n+m+1 where not exists(i in 0..m)(j = ind[i])) (y[j] != n+1);
+
 constraint all_different_except(y,{n+1})::domain_propagation;
 
 %constraint forall(i in 1..m)(sum(c in ind[i-1]+1..ind[i]-1)(s[y[c]]) <= l[i]);
@@ -51,6 +54,13 @@ constraint forall(i in 1..m)(
     ) = max_distance_per_courier[i]
 );
 
+/*
+constraint forall(i in 1..m)(
+    D[n+1, ind[i-1]] + sum(c in ind[i-1]..ind[i] where y[c]!=n+1)(
+        D[y[c],y[c+1]] 
+    ) = max_distance_per_courier[i]
+);
+*/
 var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 solve 
