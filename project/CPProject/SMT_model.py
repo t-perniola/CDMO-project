@@ -74,6 +74,10 @@ for c in COURIERS:
     for j in range(max_nodes):
         solver.add(And(path[c][j] >= 0, path[c][j] <= n+1))
 
+# no courier exceeds its load capacity
+for c in COURIERS:
+    solver.add(load[c] <= l[c])
+
 # path length should range between 3 and max_nodes
 for c in COURIERS:
     solver.add(And(path_length[c] >= 3, path_length[c] <= max_nodes))
@@ -100,13 +104,11 @@ for c1 in COURIERS:
                 <= Sum([b_path[c2][j]*s[j] for j in NODES]))
 
 # All the couriers must visit different nodes
-'''
 for c in COURIERS:
     solver.add(distinct_except([path[c][j] for j in range(max_nodes)], [0, n+1]))
-'''
 
 for i in NODES:
-    solver.add(Sum([If(b_path[c][i] == True, 1 , 0) for c in COURIERS]) == 1)
+    solver.add(Sum([If(b_path[c][i], 1 , 0) for c in COURIERS]) == 1)
 
 for j in NODES:
     solver.add(Or([b_path[c][j] == True for c in COURIERS]))
@@ -149,12 +151,11 @@ if solver.check() == sat:
         for j in range(1, path_length_value.as_long()):
             solver.add(And(model[path[c][j]] != 0, model[path[c][j+1]] != 0))
 
-    '''
     # Load size constraint
     for c in COURIERS:
         path_length_value = model.eval(path_length[c])
         solver.add(Sum([s[model[path[c][j]].as_long()] for j in range(1, path_length_value.as_long())]) <= l[c])
-    '''
+
     # Rerun the solver
     if solver.check() == sat:
         model = solver.model()
