@@ -1,8 +1,12 @@
 from z3 import *
 from utils import *
-import matplotlib.pyplot as plt
-import networkx as nx
 import time
+
+# NOTE: THEORIES USED
+# - Boolean Logic
+# - Arithmetic
+# - EUF (uninterpreted functions)
+# - Arrays
 
 # Record start time
 start_time = time.time()
@@ -12,7 +16,7 @@ start_time = time.time()
 directory = 'instances'
 
 # Choose the instance
-NUM_INST = 13
+NUM_INST = 5
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
@@ -40,8 +44,8 @@ path_length = Array('path', Z, Z)
 total_distance = Array('total_distance', Z, Z)
 D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and returns an integer (distance)
 
-# INITIALIZE the SOLVER
-solver = Solver()
+# INITIALIZE the OPTIMIZER
+optimizer = Solver()
 
 # HELPER FUNCTIONS
 # - all_different
@@ -63,77 +67,63 @@ def lexleq(a1, a2):
 # - distance matrix
 for i in range(n+1):
     for j in range(n+1):
-        solver.add(D_func(i, j) == D[i][j])
+        optimizer.add(D_func(i, j) == D[i][j])
 # items' sizes
 for i in range(n):
-    solver.add(size[i+1] == s[i])
-# Couriers' load capacities
+    optimizer.add(size[i+1] == s[i])
+# Couriers' laod capacities
 for c in range(m):
-    solver.add(load[c+1] == l[c])
+    optimizer.add(load[c+1] == l[c])
 
 # Path should range between 0 and n+1        
 for c in Couriers:
     for j in range(1, MAX_ITEMS+1):
-        solver.add(And(path[c][j] >= 0, path[c][j] <= n+1))
+        optimizer.add(And(path[c][j] >= 0, path[c][j] <= n+1))
 
 # Boundaries of path_length's values
 for c in Couriers:
-    solver.add(And(path_length[c] >= 3, path_length[c] <= MAX_ITEMS))
+    optimizer.add(And(path_length[c] >= 3, path_length[c] <= MAX_ITEMS))
 
 # Define initial node and final node
 for c in Couriers:
-    solver.add(path[c][1] == n + 1) # Initial node
-    solver.add(path[c][path_length[c]] == n + 1)  # Ending node
+    optimizer.add(path[c][1] == n + 1) # Initial node
+    optimizer.add(path[c][path_length[c]] == n + 1)  # Ending node
 
 # Set unvisited Items to zero
 for c in Couriers:
     for i in range(1, MAX_ITEMS + 1):
-        solver.add(Implies(i > path_length[c], path[c][i] == 0))
+        optimizer.add(Implies(i > path_length[c], path[c][i] == 0))
 
 # No courier exceeds its load capacity
 for c in Couriers:    
     load_expr = Sum([If(b_path[c][j], size[j], 0) for j in Items])
-    solver.add(load_expr <= load[c])
+    optimizer.add(load_expr <= load[c])
 
 # Exactly one item assignment to a courier
 for j in Items:
-    solver.add(Sum([If(b_path[c][j], 1, 0) for c in Couriers]) == 1)
+    optimizer.add(Sum([If(b_path[c][j], 1, 0) for c in Couriers]) == 1)
 
 # A courier cannot take more than MAX_ITEMS items
 for c in Couriers:
-    solver.add(Sum([If(b_path[c][j], 1, 0) for j in Items]) <= MAX_ITEMS)
+    optimizer.add(Sum([If(b_path[c][j], 1, 0) for j in Items]) <= MAX_ITEMS)
 
 # Couriers cannot visit same node twice (nor stay in the same node)
 for c in Couriers:
-    solver.add(distinct_except([path[c][j] for j in range(1, MAX_ITEMS)], [0]))
+    optimizer.add(distinct_except([path[c][j] for j in range(1, MAX_ITEMS)], [0]))
 
 # Channeling: 
 # - b_path -> path
 for c in Couriers:
     for i in Items: # if b_bath[c][i] is true, then there must be true also at least one path[c][j] == i
-        solver.add(Implies(b_path[c][i], Or([path[c][j] == i for j in range(1, MAX_ITEMS+1)])))
+        optimizer.add(Implies(b_path[c][i], Or([path[c][j] == i for j in range(1, MAX_ITEMS+1)])))
         # if b_bath[c][i] is false, then there won't be any path[c][j] == i
-        solver.add(Implies(Not(b_path[c][i]), And([path[c][j] != i for j in range(1, MAX_ITEMS+1)])))
-
-# - path -> b_path
-for c in Couriers:
-    for j in range(MAX_ITEMS): # If node j is present in the path of courier c, set the corresponding item in b_path to True
-        solver.add(Implies(path[c][j] != n+1, b_path[c][path[c][j]] == True))
-        # If node j is not present in the path of courier c, set the corresponding item in b_path to False
-        solver.add(Implies(path[c][j] == n+1, b_path[c][path[c][j]] == False))
-
-# If you have more load size than me, then your load must be greater than mine
-for c1 in Couriers:
-    for c2 in Couriers:
-        if c2 > c1:
-            solver.add(If(load[c2] < load[c1], Sum([If(b_path[c1][j], size[j], 0) for j in Items])
-                        <= Sum([If(b_path[c2][j], size[j], 0) for j in Items]), True))
+        optimizer.add(Implies(Not(b_path[c][i]), And([path[c][j] != i for j in range(1, MAX_ITEMS+1)])))
 
 # The items weight cannot exceed the load size (NOTE: redundant? since channeling is there...)
 for c in Couriers:
-    solver.add(Sum([If(b_path[c][j], size[j], 0) for j in Items]) <= load[c])
-    solver.add(Sum([If(j < path_length[c]-1, size[path[c][j]], 0) for j in range(2, MAX_ITEMS)]) <= load[c])
-
+    optimizer.add(Sum([If(b_path[c][j], size[j], 0) for j in Items]) <= load[c])
+    optimizer.add(Sum([If(j < path_length[c]-1, size[path[c][j]], 0) for j in range(2, MAX_ITEMS)]) <= load[c])
+            
 # Distance computation
 for c in Couriers:
     # Sum for distances between two non-zero Items
@@ -141,10 +131,11 @@ for c in Couriers:
                     for j in range(1, MAX_ITEMS)])
     
     # Sum for distances when there's a zero node between two non-zero items
+    # FIXME: allowing zeros in the paths, we have to do this additional computation
     dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1]-1, path[c][j+1]-1), 0)
                       for j in range(1, MAX_ITEMS)])
     
-    solver.add(total_distance[c] == dist_expr)
+    optimizer.add(total_distance[c] == dist_expr)
 
 # Symmetry breaking: two couriers with the same load size
 for c1 in Couriers:
@@ -152,49 +143,65 @@ for c1 in Couriers:
         if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
             # Add symmetry-breaking constraint if load sizes are equal
             sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
-            solver.add(sym_break_constraint)
+            optimizer.add(sym_break_constraint)
 
-# Initialize the variable to store the current best maximum distance
+# OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
+max_dist = Int('max_dist')
+optimizer.add([max_dist >= total_distance[c] for c in Couriers])
+
+time_limit = 10
 current_best_max_dist = None
 
 while True:
-    solver.push()
+    # Check elapsed time
+    elapsed_time = time.time() - start_time
+    if elapsed_time > time_limit:
+        print("\nTime limit reached.")
+        break
 
-    # Check satisfiability
-    if solver.check() == sat:
-        model = solver.model()
+    # Set timeout for each solver call to the remaining time
+    remaining_time = int(max(time_limit - elapsed_time, 1) * 1000)  # in milliseconds
+    # we enforce a strict time limit on each individual call to optimizer.check(),
+    # s.t. the timout is adjusted dynamically based on the remaining time.
+    optimizer.set(timeout=remaining_time)
 
-        # Print the path for each courier (NOTE: without zeros)
-        print("\nCouriers' paths")
-        paths = {}
-        for c in Couriers:
-            path_length_c = model.eval(path_length[c]).as_long()
-            path_values = []
-            for j in range(1, path_length_c + 1):
-                evaluated_value = model.evaluate(path[c][j]).as_long()
-                if evaluated_value != 0:
-                    path_values.append(evaluated_value)
-            paths[c] = path_values
-            print(f'Courier {c}: {path_values}')
+    # CHECK SATISFIABILITY
+    if optimizer.check() == sat:
+        model = optimizer.model()
 
-        print("\nTotal distances")
-        for c in Couriers:
-            print(f"Courier {c}: {model.eval(total_distance[c])}")
-
-        # Evaluate and find the current maximum distance
+        # Evaluate the maximum distance traveled by any courier
         current_max_dist = max(model.eval(total_distance[c]).as_long() for c in Couriers)
-        print(f"\nCurrent max distance: {current_max_dist}")
 
         if current_best_max_dist is None or current_max_dist < current_best_max_dist:
             current_best_max_dist = current_max_dist
 
+            # Print the current best solution
+            print("\nCurrent best solution:")
+            paths = {}
+            for c in Couriers:
+                path_length_c = model.eval(path_length[c]).as_long()
+                path_values = []
+                for j in range(1, path_length_c + 1):
+                    evaluated_value = model.evaluate(path[c][j]).as_long()
+                    if evaluated_value != 0:
+                        path_values.append(evaluated_value)
+                paths[c] = path_values
+                print(f'Courier {c}: {path_values}')
+            print(f"Current best max distance: {current_best_max_dist}")
+
         # Add a constraint to find a better solution in the next iteration
-        solver.add(Or([total_distance[c] < current_best_max_dist for c in Couriers]))
-        
-        solver.pop()
+        optimizer.add(max_dist < current_best_max_dist)
+
     else:
-        solver.pop()
+        print("unsat")
         break
+
+# Draw the graph with each courier's path
+try:
+    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
+except NameError:
+    print("\nNo solution found.")
+else: print(f"\nMax distance: {model.eval(max_dist)}")
 
 # Record end time
 end_time = time.time()
@@ -202,30 +209,6 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 print(f"\nElapsed time: {elapsed_time} seconds")
 
-# Plot the paths using networkx
-G = nx.Graph()
-
-# Add nodes
-for i in range(1, n + 2):
-    G.add_node(i)
-
-# Add edges for each courier's path
-colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']  # Add more colors if needed
-for c in Couriers:
-    path_values = paths[c]
-    edges = [(path_values[i], path_values[i + 1]) for i in range(len(path_values) - 1)]
-    edges.append((path_values[-1], path_values[0]))  # To complete the loop
-    G.add_edges_from(edges, color=colors[c % len(colors)], weight=2)
-
-# Get edges and colors
-edges = G.edges()
-edge_colors = [G[u][v]['color'] for u, v in edges]
-edge_weights = [G[u][v]['weight'] for u, v in edges]
-
-# Draw the graph
-pos = nx.circular_layout(G)
-edges = [(u, v) for u, v in edges if u != v]
-nx.draw(G, pos, edgelist=edges, edge_color=edge_colors, width=edge_weights, with_labels=True, node_size=500, node_color='lightblue')
-
-plt.title('Paths taken by Couriers')
-plt.show()
+# Get smt-lib output
+#smt2_output = optimizer.to_smt2()
+#print(smt2_output)

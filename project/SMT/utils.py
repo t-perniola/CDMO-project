@@ -1,4 +1,6 @@
 import os
+import matplotlib.pyplot as plt
+import networkx as nx
 
 def read_dat_file(file_path):
     with open(file_path, 'r') as file:
@@ -35,3 +37,40 @@ def read_all_dat_files(directory):
             instance = read_dat_file(file_path)
             instances.append(instance)
     return instances
+
+# Draw graph of each courier's path
+def draw_graph(num_items, Couriers, paths):
+    # Plot the paths using networkx
+    G = nx.Graph()
+    
+    # Add nodes
+    for i in range(1, num_items + 2):
+        G.add_node(i)
+    
+    # Add edges for each courier's path
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    for c in Couriers:
+        path_values = paths[c]
+        for i in range(len(path_values) - 1):
+            G.add_edge(path_values[i], path_values[i + 1], color=colors[c % len(colors)], weight=2)
+
+    # Get edges and colors
+    edges = G.edges()
+    edge_colors = [G[u][v]['color'] for u, v in edges]
+    edge_weights = [G[u][v]['weight'] for u, v in edges]
+
+    # Draw the graph
+    pos = nx.spring_layout(G)
+
+    # Draw nodes and labels
+    nx.draw_networkx_nodes(G, pos, node_size=500, node_color='lightblue')
+    nx.draw_networkx_labels(G, pos)
+
+    # Draw directed edges with arrows following path order
+    for c in Couriers:
+        path_values = paths[c]
+        path_edges = [(path_values[i], path_values[i + 1]) for i in range(len(path_values) - 1)]
+        nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color=colors[c % len(colors)], width=2, arrows=True, arrowstyle='-|>', arrowsize=20)
+
+    plt.title('Couriers paths')
+    plt.show()
