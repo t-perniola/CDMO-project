@@ -16,7 +16,7 @@ start_time = time.time()
 directory = 'SMT\Instances'
 
 # Choose the instance
-NUM_INST = 2
+NUM_INST = 10
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
@@ -52,16 +52,6 @@ optimizer = Solver()
 def distinct_except(values, forbidden_values):
     non_forbidden_values = [v for v in values if v not in forbidden_values]
     return Distinct(non_forbidden_values) # enforcing uniqueness
-
-# - lexicographic order
-def lexleq(a1, a2):
-    if not a1:  # If a1 is an empty list, it precedes a2
-        return True
-    if not a2:  # If a2 is an empty list, a1 does not precede a2
-        return False
-    # Compare the first elements and recursively check the rest
-    return Or(And(Not(a1[0]), a2[0]), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
-    #return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
 
 # CONSTRAINTS
 # Mappings (due to 0-indexing): Z3 Arrays <-> Python arrays
@@ -138,14 +128,6 @@ for c in Couriers:
     
     optimizer.add(total_distance[c] == dist_expr)
 
-# Symmetry breaking: two couriers with the same load size
-for c1 in Couriers:
-    for c2 in Couriers:
-        if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
-            # Add symmetry-breaking constraint if load sizes are equal
-            sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
-            optimizer.add(sym_break_constraint)
-
 # OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
 max_dist = Int('max_dist')
 optimizer.add([max_dist >= total_distance[c] for c in Couriers])
@@ -204,8 +186,8 @@ elapsed_time = end_time - start_time
 print(f"\nElapsed time: {elapsed_time} seconds")
 
 # Draw the graph with each courier's path
-try: # 'paths' variable exists only exists if at least a solution is found 
-    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
-except NameError:
-    print("\nNo solution found.")
-else: print(f"\nMax distance: {current_best_max_dist}")
+#try: # 'paths' variable exists only exists if at least a solution is found 
+#    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
+#except NameError:
+    # print("\nNo solution found.")
+#else: print(f"\nMax distance: {current_best_max_dist}")

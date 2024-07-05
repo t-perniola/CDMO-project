@@ -13,10 +13,10 @@ start_time = time.time()
 
 # IMPORTING INSTANCES
 # Directory containing .dat files
-directory = 'instances'
+directory = 'SMT\Instances'
 
 # Choose the instance
-NUM_INST = 2
+NUM_INST = 3
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
@@ -132,20 +132,6 @@ for c in Couriers:
         optimizer.add(Implies(b_path[c][i], Or([path[c][j] == i for j in range(1, MAX_ITEMS+1)])))
         # if b_bath[c][i] is false, then there won't be any path[c][j] == i
         optimizer.add(Implies(Not(b_path[c][i]), And([path[c][j] != i for j in range(1, MAX_ITEMS+1)])))
-
-# - path -> b_path
-for c in Couriers:
-    for j in range(MAX_ITEMS): # If node j is present in the path of courier c, set the corresponding item in b_path to True
-        optimizer.add(Implies(path[c][j] != n+1, b_path[c][path[c][j]] == True))
-        # If node j is not present in the path of courier c, set the corresponding item in b_path to False
-        optimizer.add(Implies(path[c][j] == n+1, b_path[c][path[c][j]] == False))
-
-# If you have more load size than me, then your load must be greater than mine
-for c1 in Couriers:
-    for c2 in Couriers:
-        if c2 > c1:
-            optimizer.add(If(load[c2] < load[c1], Sum([If(b_path[c1][j], size[j], 0) for j in Items])
-                        <= Sum([If(b_path[c2][j], size[j], 0) for j in Items]), True))
 
 # The items weight cannot exceed the load size (NOTE: redundant? since channeling is there...)
 for c in Couriers:
