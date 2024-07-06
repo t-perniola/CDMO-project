@@ -16,7 +16,7 @@ start_time = time.time()
 directory = 'SMT\Instances'
 
 # Choose the instance
-NUM_INST = 2
+NUM_INST = 5
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
