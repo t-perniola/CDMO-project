@@ -1,3 +1,4 @@
+import uuid
 from z3 import *
 from itertools import combinations
 
@@ -35,6 +36,26 @@ def at_most_one_seq(bool_vars, name):
 def exactly_one_seq(bool_vars, name):
     return And(at_least_one_seq(bool_vars), at_most_one_seq(bool_vars, name))
 
+
+def convert(number: int, length: int) -> list[BoolRef]:
+    num = []
+    str_num = bin(number)[2:].zfill(length)  # Convert number to binary string and zero-pad to specified length
+    for i in range(length):
+        ni = Bool(str(uuid.uuid4()))  # Create a new Z3 boolean variable with a random name
+        if str_num[i] == '1':
+            num.append(ni)
+            ni = True
+        else:
+            ni = False
+    return num
+
+# Full-Adder
+def full_adder(A, B, Cin):
+    # Compute sum and carry-out (Cout)
+    Sum = A ^ B ^ Cin  # XOR operation gives the sum
+    Cout = (A & B) | (Cin & (A ^ B))  # Compute carry-out
+    
+    return Sum, Cout
 
 # Bitwise
 def toBinary(num, length = None): 
