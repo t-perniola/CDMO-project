@@ -1,6 +1,20 @@
+'''
+main.py <approach> <instance_number> if you want to execute a specific instance
+main.py <approach> if you want to execute all the instances
+'''
+
+import sys
 from MIP import MIP 
 
-def run_model(approach, instance_number, run_all_instances=False):
+def run_model(argv):
+    approach = argv[1]
+
+    run_all_instances = False
+    if len(argv) == 2:
+        run_all_instances = True
+    else:
+        instance_number = argv[2]
+    
     if not run_all_instances:
         match approach:
             case 'MIP':
@@ -9,6 +23,8 @@ def run_model(approach, instance_number, run_all_instances=False):
                 print('Invalid parameters')
 
 
+if __name__ == "__main__":
+    run_model(sys.argv)
 
 #Example
 run_model('MIP', '01')
