@@ -8,15 +8,14 @@ import os
 def find_path(adj_matrix, courier, n):
     res = []
     source = n
-    res.append(source)
     while True:
         for dest in range(n+1):
             if adj_matrix[courier, source, dest].X == 1:
+                if dest == n:
+                    return res
                 res.append(dest)
                 source = dest
                 break
-        if source == n:
-            return res
 
 def MIP(instance_number):
     starting_time = datetime.now()
@@ -30,7 +29,8 @@ def MIP(instance_number):
     m = parsed_data['m']
     n = parsed_data['n']
     s = parsed_data['s']
-    l = sorted(parsed_data['l'], reverse=True)
+    #l = sorted(parsed_data['l'], reverse=True)
+    l = parsed_data['l']
     D = parsed_data['D']
 
     max_total_dist = model.addVar(vtype=gp.GRB.CONTINUOUS, name='MaxTotalDist')
@@ -83,9 +83,11 @@ def MIP(instance_number):
                 model.addConstr( (gp.quicksum(paths[c,dest,j] for j in range(source+1)) + paths[c,source,dest]) <= 1)
 
     #Symmetry breaking constraints
+    '''
     for c in range(m-1):
         model.addConstr( gp.quicksum(paths[c,source,dest] for source in range(n) for dest in range(n)) >= \
                         gp.quicksum(paths[c+1,source,dest] for source in range(n) for dest in range(n)) )
+    '''
     
     #Maximum load
     for c in range(m):
@@ -103,10 +105,11 @@ def MIP(instance_number):
             sol.append(find_path(paths,c,n))    
     
     json_dict = {}
-    json_dict['time'] = int(floor(model.Runtime + preprocessing_time.seconds)) if model.SolCount > 0 else time_limit
-    json_dict['optimal'] = True if (model.Runtime + preprocessing_time.seconds + safe_bound < time_limit) else False
-    json_dict['obj'] = int(model.ObjVal) if model.SolCount > 0 else None
-    json_dict['sol'] = sol
+    json_dict['Gurobi'] = {}
+    json_dict['Gurobi']['time'] = int(floor(model.Runtime + preprocessing_time.seconds)) if model.SolCount > 0 else time_limit
+    json_dict['Gurobi']['optimal'] = True if (model.Runtime + preprocessing_time.seconds + safe_bound < time_limit) else False
+    json_dict['Gurobi']['obj'] = int(model.ObjVal) if model.SolCount > 0 else None
+    json_dict['Gurobi']['sol'] = sol
 
-    with open(f'MIP/{str(int(instance_number))}.json', 'w') as outfile:
+    with open(f'res/MIP/{str(int(instance_number))}.json', 'w') as outfile:
         json.dump(json_dict, outfile)

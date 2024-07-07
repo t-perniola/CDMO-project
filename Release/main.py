@@ -8,5 +8,7 @@ def run_model(approach, instance_number, run_all_instances=False):
             case _:
                 print('Invalid parameters')
 
+
+
 #Example
-run_model('MIP', '09')
+run_model('MIP', '01')
