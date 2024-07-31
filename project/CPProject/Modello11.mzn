@@ -17,7 +17,7 @@ array[1..n+1, 1..n+1] of int: D;
 array[1..m, 1..n+1] of var 1..n+1: x;
 
 % symmetry breaking variable
-array[1..m, 1..n] of var 0..1: b_y;
+%array[1..m, 1..n] of var 0..1: b_y;
 
 % aggiustare la maxdistance -> fare un preprocessing
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
@@ -54,21 +54,36 @@ constraint
 
 
 % Channeling 
-constraint forall(i in 1..m, j in 1..n)(x[i, j] != j <-> b_y[i, j] = 1)::domain_propagation;
+%constraint forall(i in 1..m, j in 1..n)(x[i, j] != j <-> b_y[i, j] = 1)::domain_propagation;
 
   
 % Symmetry Breaking constraints %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Ensuring exactly one 1 per column in b_y for the first n elements
+/*
 constraint forall(j in 1..n)(
     sum(i in 1..m)(b_y[i, j]) = 1
 );
+*/
 
 % More size to bigger courier
 %constraint symmetry_breaking_constraint(forall(c1,c2 in 1..m where c2>c1 /\ l[c2]>=l[c1])(sum(j in 1..n)(b_y[c1,j]*s[j]) <= sum(j in 1..n)(b_y[c2,j]*s[j])));
 
 % lex_lesseq
-constraint symmetry_breaking_constraint(forall(c1,c2 in 1..m where l[c1]==l[c2] /\ c1<c2)(lex_lesseq([b_y[c1,j] | j in 1..n],[b_y[c2,j] | j in 1..n])));
+%constraint symmetry_breaking_constraint(forall(c1,c2 in 1..m where l[c1]==l[c2] /\ c1<c2)(lex_lesseq([b_y[c1,j] | j in 1..n],[b_y[c2,j] | j in 1..n])));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
+/*
+constraint
+    forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
+        sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[i, j2] == j2 then 0 else s[j2] endif)
+    );
+*/  
+
+constraint
+    forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
+        lex_less([x[i,k] | k in 1..n+1] , [x[z,k1] | k1 in 1..n+1])
+    );
       
    
 %%%%%%%% OBJECTIVE %%%%%%%%%%
@@ -82,6 +97,7 @@ var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 solve 
 :: int_search(x, dom_w_deg, indomain_random) 
+%:: int_search(x, first_fail, indomain_min)
 %:: int_search(b_y, dom_w_deg, indomain_random)
 :: restart_luby(100) 
 :: relax_and_reconstruct(array1d(x), 83)
