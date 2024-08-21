@@ -10,7 +10,7 @@ def CP(instance_number):
     start_time = time.time()
 
     # IMPORTING INSTANCE
-    file_path = os.path.join('../Instances', f'inst{instance_number}.dat')
+    file_path = os.path.join('Instances', f'inst{instance_number}.dat')
     instance_data = utils.read_dat_file(file_path)
 
     m = instance_data['m']
@@ -124,7 +124,7 @@ def CP(instance_number):
 
     # Save the result in JSON format
     with open(f'res/CP/{str(int(instance_number))}.json', 'w') as outfile:
-        json.dump(result_json, outfile, indent=4)
+        json.dump(result_json, outfile)
 
 # Example usage
 CP('01')

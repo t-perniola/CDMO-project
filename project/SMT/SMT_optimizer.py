@@ -1,6 +1,7 @@
 from z3 import *
-from utils import *
+import utils
 import time
+import os
 
 # NOTE: THEORIES USED
 # - Boolean Logic
@@ -11,16 +12,12 @@ import time
 # Record start time
 start_time = time.time()
 
-# IMPORTING INSTANCES
-# Directory containing .dat files
-directory = 'project\SMT\Instances'
+# Choose instance
+NUM_INST = "05"
 
-# Choose the instance
-NUM_INST = 2
-
-# Read all .dat files and populate instances
-instances = read_all_dat_files(directory)
-instance = instances[NUM_INST-1] # extract the corresp. instance
+# IMPORTING INSTANCE
+file_path = os.path.join('project\SMT\Instances', f'inst{NUM_INST}.dat')
+instance = utils.read_dat_file(file_path)
 m = instance['m']
 n = instance['n']
 l = instance['l']
@@ -44,8 +41,8 @@ path_length = Array('path', Z, Z)
 total_distance = Array('total_distance', Z, Z)
 D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and returns an integer (distance)
 
-# INITIALIZE the OPTIMIZER
-optimizer = Solver()
+# INITIALIZE the optimizer
+optimizer = Optimize()
 
 # HELPER FUNCTIONS
 # - all_different
@@ -53,15 +50,14 @@ def distinct_except(values, forbidden_values):
     non_forbidden_values = [v for v in values if v not in forbidden_values]
     return Distinct(non_forbidden_values) # enforcing uniqueness
 
-# - lexicographic order
+# - lexicographic ordering
 def lexleq(a1, a2):
-    if not a1:  # If a1 is an empty list, it precedes a2
+    if not a1: # if a1 is an empty list, then a1 precedes a2
         return True
-    if not a2:  # If a2 is an empty list, a1 does not precede a2
-        return False
-    # Compare the first elements and recursively check the rest
-    return Or(And(Not(a1[0]), a2[0]), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
-    #return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
+    if not a2:
+        return False 
+    # if the first elem are different or if are the same recursively call the funct
+    return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
 
 # CONSTRAINTS
 # Mappings (due to 0-indexing): Z3 Arrays <-> Python arrays
@@ -90,7 +86,7 @@ for c in Couriers:
     optimizer.add(path[c][1] == IntVal(n + 1)) # Initial node
     optimizer.add(path[c][path_length[c]] == IntVal(n + 1))  # Ending node
 
-# Set unvisited Items to zero
+# Set unvisited items to zero
 for c in Couriers:
     for i in range(1, MAX_ITEMS + 1):
         optimizer.add(Implies(i > path_length[c], path[c][i] == IntVal(0)))
@@ -120,7 +116,7 @@ for c in Couriers:
         # if b_bath[c][i] is false, then there won't be any path[c][j] == i
         optimizer.add(Implies(Not(b_path[c][i]), And([path[c][j] != i for j in range(1, MAX_ITEMS+1)])))
 
-# The items weight cannot exceed the load size (NOTE: redundant? since channeling is there...)
+# The items weight cannot exceed the load size
 for c in Couriers:
     optimizer.add(Sum([If(b_path[c][j], size[j], 0) for j in Items]) <= load[c])
     optimizer.add(Sum([If(j < path_length[c]-1, size[path[c][j]], 0) for j in range(2, MAX_ITEMS)]) <= load[c])
@@ -128,13 +124,12 @@ for c in Couriers:
 # Distance computation
 for c in Couriers:
     # Sum for distances between two non-zero Items
-    dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j] - IntVal(1), path[c][j+1] - IntVal(1)), 0)
+    dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j]-IntVal(1), path[c][j+1]-IntVal(1)), 0)
                     for j in range(1, MAX_ITEMS)])
     
     # Sum for distances when there's a zero node between two non-zero items
-    # FIXME: allowing zeros in the paths, we have to do this additional computation
-    dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1] - IntVal(1), path[c][j+1] - IntVal(1)), 0)
-                      for j in range(1, MAX_ITEMS)])
+    dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1]-IntVal(1), path[c][j+1]-IntVal(1)), 0)
+                    for j in range(1, MAX_ITEMS)])
     
     optimizer.add(total_distance[c] == dist_expr)
 
@@ -149,66 +144,59 @@ for c1 in Couriers:
 # OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
 max_dist = Int('max_dist')
 optimizer.add([max_dist >= total_distance[c] for c in Couriers])
+optimizer.minimize(max_dist)
 
-TIME_LIMIT = 300
-current_best_max_dist = None
+# CHECK SATISFIABILITY
+if optimizer.check() == sat:
 
-while True:
-    # Check elapsed time
-    elapsed_time = time.time() - start_time
-    if elapsed_time > TIME_LIMIT:
-        print("\nTime limit reached.")
-        break
+    # Store the model 
+    model = optimizer.model()
+    
+    # Convert to smt-lib format and store it
+    #smtlib_model = optimizer.to_smt2()
 
-    # Set timeout for each solver call to the remaining time
-    remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)  # in milliseconds
-    # we enforce a strict time limit on each individual call to optimizer.check(),
-    # s.t. the timout is adjusted dynamically based on the remaining time.
-    optimizer.set(timeout=remaining_time)
+    # Print the path for each courier (NOTE: without zeros)
+    print("\nCouriers' paths")
+    paths = {}
+    for c in Couriers:
+        path_length_c = model.eval(path_length[c]).as_long()
+        path_values = []
+        for j in range(1, path_length_c + 1):
+            evaluated_value = model.evaluate(path[c][j]).as_long()
+            if evaluated_value != 0:
+                path_values.append(evaluated_value)
+        paths[c] = path_values
+        print(f'Courier {c}: {path_values}')
 
-    # Save the current state
-    optimizer.push()
+    '''
+    # Print the path for each courier (NOTE: with zeros)
+    print("\nCouriers' paths")
+    for c in Couriers:
+        path_values = [model.evaluate(path[c][j]) for j in range(1, model.eval(path_length[c]+1).as_long())]
+        print(f'Courier {c}: {path_values}')
+    '''
+    
+    '''
+    # Print the item assignments in b_path
+    for c in Couriers:
+        item_assignments = [model.evaluate(b_path[c][j]) for j in Items]
+        print(f'Courier {c} item assignments: {item_assignments}') 
+    '''  
 
-    # CHECK SATISFIABILITY
-    if optimizer.check() == sat:
-        model = optimizer.model()
+    print("\nTotal distances")
+    for c in Couriers:
+        print(f"Courier {c}: {model.eval(total_distance[c])}")
+    
+    print(f"\nMax distance: {model.eval(max_dist)}")
 
-        # Evaluate the maximum distance traveled by any courier
-        current_max_dist = max(model.eval(total_distance[c]).as_long() for c in Couriers)
+    # Record end time
+    end_time = time.time()
+    # Calculate elapsed time
+    elapsed_time = end_time - start_time
+    print("\nElapsed time: {:.2f} seconds".format(elapsed_time))
 
-        if current_best_max_dist is None or current_max_dist < current_best_max_dist:
-            current_best_max_dist = current_max_dist
+    # Draw the graph with each courier's path
+    utils.draw_graph(num_items=n, Couriers=Couriers, paths=paths)
 
-            # Print the current best solution
-            print("\nCurrent best solution:")
-            paths = {}
-            for c in Couriers:
-                path_length_c = model.eval(path_length[c]).as_long()
-                path_values = []
-                for j in range(1, path_length_c + 1):
-                    evaluated_value = model.evaluate(path[c][j]).as_long()
-                    if evaluated_value != 0:
-                        path_values.append(evaluated_value)
-                paths[c] = path_values
-                print(f'Courier {c}: {path_values}')
-            print(f"Current best max distance: {current_best_max_dist}")
-
-        # Add a constraint to find a better solution in the next iteration
-        optimizer.add(max_dist < current_best_max_dist)
-
-    else:
-        print("\nunsat")
-        break
-
-# Record end time
-end_time = time.time()
-# Calculate elapsed time
-elapsed_time = end_time - start_time
-print("\nElapsed time: {:.2f} seconds".format(elapsed_time))
-
-# Draw the graph with each courier's path
-try: # 'paths' variable exists only exists if at least a solution is found 
-    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
-except NameError:
-    print("\nNo solution found.")
-else: print(f"\nMax distance: {current_best_max_dist}")
+else:
+    print("unsat")

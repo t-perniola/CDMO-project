@@ -13,10 +13,10 @@ start_time = time.time()
 
 # IMPORTING INSTANCES
 # Directory containing .dat files
-directory = 'SMT\Instances'
+directory = 'project/SMT/Instances'
 
 # Choose the instance
-NUM_INST = 3
+NUM_INST = 5
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
@@ -45,22 +45,13 @@ total_distance = Array('total_distance', Z, Z)
 D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and returns an integer (distance)
 
 # INITIALIZE the OPTIMIZER
-optimizer = Optimize()
+optimizer = Solver()
 
 # HELPER FUNCTIONS
 # - all_different
 def distinct_except(values, forbidden_values):
     non_forbidden_values = [v for v in values if v not in forbidden_values]
     return Distinct(non_forbidden_values) # enforcing uniqueness
-
-# - lexicographic ordering
-def lexleq(a1, a2):
-    if not a1: # if a1 is an empty list, then a1 precedes a2
-        return True
-    if not a2:
-        return False 
-    # if the first elem are different or if are the same recursively call the funct
-    return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
 
 # CONSTRAINTS
 # Mappings (due to 0-indexing): Z3 Arrays <-> Python arrays
@@ -111,20 +102,6 @@ for c in Couriers:
 for c in Couriers:
     optimizer.add(distinct_except([path[c][j] for j in range(1, MAX_ITEMS)], [0]))
 
-'''
-# No zeros in each path: (FIXME: it does not work, therefore we allow them to be present)
-for c in Couriers:
-    for i in range(2, MAX_ITEMS):
-        optimizer.add(Implies(i < path_length[c]-1, path[c][i] != 0))
-        optimizer.add(Implies(i < path_length[c]-1, path[c][i+1] != 0))
-'''
-
-'''
-# All the Items must be visited at least once (NOTE: redundant)
-for i in Items:
-    optimizer.add(Or([b_path[c][j] for c in Couriers]))
-'''
-
 # Channeling: 
 # - b_path -> path
 for c in Couriers:
@@ -151,65 +128,66 @@ for c in Couriers:
     
     optimizer.add(total_distance[c] == dist_expr)
 
-# Symmetry breaking: two couriers with the same load size
-for c1 in Couriers:
-    for c2 in Couriers:
-        if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
-            # Add symmetry-breaking constraint if load sizes are equal
-            sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
-            optimizer.add(sym_break_constraint)
-
 # OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
 max_dist = Int('max_dist')
 optimizer.add([max_dist >= total_distance[c] for c in Couriers])
-optimizer.minimize(max_dist)
 
-# CHECK SATISFIABILITY
-if optimizer.check() == sat:
-    model = optimizer.model()
+TIME_LIMIT = 300
+current_best_max_dist = None
 
-    # Print the path for each courier (NOTE: without zeros)
-    print("\nCouriers' paths")
-    paths = {}
-    for c in Couriers:
-        path_length_c = model.eval(path_length[c]).as_long()
-        path_values = []
-        for j in range(1, path_length_c + 1):
-            evaluated_value = model.evaluate(path[c][j]).as_long()
-            if evaluated_value != 0:
-                path_values.append(evaluated_value)
-        paths[c] = path_values
-        print(f'Courier {c}: {path_values}')
+while True:
+    # Check elapsed time
+    elapsed_time = time.time() - start_time
+    if elapsed_time > TIME_LIMIT:
+        print("\nTime limit reached.")
+        break
 
-    '''
-    # Print the path for each courier (NOTE: with zeros)
-    print("\nCouriers' paths")
-    for c in Couriers:
-        path_values = [model.evaluate(path[c][j]) for j in range(1, model.eval(path_length[c]+1).as_long())]
-        print(f'Courier {c}: {path_values}')
-    '''
-    
-    '''
-    # Print the item assignments in b_path
-    for c in Couriers:
-        item_assignments = [model.evaluate(b_path[c][j]) for j in Items]
-        print(f'Courier {c} item assignments: {item_assignments}') 
-    '''  
+    # Set timeout for each solver call to the remaining time
+    remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)  # in milliseconds
+    # we enforce a strict time limit on each individual call to optimizer.check(),
+    # s.t. the timout is adjusted dynamically based on the remaining time.
+    optimizer.set(timeout=remaining_time)
 
-    print("\nTotal distances")
-    for c in Couriers:
-        print(f"Courier {c}: {model.eval(total_distance[c])}")
-    
-    print(f"\nMax distance: {model.eval(max_dist)}")
+    # CHECK SATISFIABILITY
+    if optimizer.check() == sat:
+        model = optimizer.model()
 
-    # Record end time
-    end_time = time.time()
-    # Calculate elapsed time
-    elapsed_time = end_time - start_time
-    print(f"\nElapsed time: {elapsed_time} seconds")
+        # Evaluate the maximum distance traveled by any courier
+        current_max_dist = max(model.eval(total_distance[c]).as_long() for c in Couriers)
 
-    # Draw the graph with each courier's path
-    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
+        if current_best_max_dist is None or current_max_dist < current_best_max_dist:
+            current_best_max_dist = current_max_dist
 
-else:
-    print("unsat")
+            # Print the current best solution
+            print("\nCurrent best solution:")
+            paths = {}
+            for c in Couriers:
+                path_length_c = model.eval(path_length[c]).as_long()
+                path_values = []
+                for j in range(1, path_length_c + 1):
+                    evaluated_value = model.evaluate(path[c][j]).as_long()
+                    if evaluated_value != 0:
+                        path_values.append(evaluated_value)
+                paths[c] = path_values
+                print(f'Courier {c}: {path_values}')
+            print(f"Current best max distance: {current_best_max_dist}")
+
+        # Add a constraint to find a better solution in the next iteration
+        optimizer.add(max_dist < current_best_max_dist)
+
+    else:
+        print("unsat")
+        break
+
+# Record end time
+end_time = time.time()
+# Calculate elapsed time
+elapsed_time = end_time - start_time
+print(f"\nElapsed time: {elapsed_time} seconds")
+
+# Draw the graph with each courier's path
+#try: # 'paths' variable exists only exists if at least a solution is found 
+#    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
+#except NameError:
+    # print("\nNo solution found.")
+#else: print(f"\nMax distance: {current_best_max_dist}")

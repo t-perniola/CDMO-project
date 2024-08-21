@@ -4,19 +4,17 @@ import json
 import utils
 import time
 
-# NOTE: THEORIES USED
-# - Boolean Logic
-# - Arithmetic
-# - EUF (uninterpreted functions)
-# - Arrays
-
 def SMT(instance_number):
 
     start_time = time.time()
-
+    
     # IMPORTING INSTANCE
-    file_path = os.path.join('Instances', f'inst{instance_number}.dat')
-    instance = utils.read_dat_file(file_path)
+    try:
+        file_path = os.path.join('Instances', f'inst{instance_number}.dat')
+        instance = utils.read_dat_file(file_path)
+    except Exception as e:
+        print(f"Error reading the instance file: {e}")
+        return None
 
     m = instance['m']
     n = instance['n']
@@ -76,21 +74,21 @@ def SMT(instance_number):
     # Path should range between 0 and n+1        
     for c in Couriers:
         for j in range(1, MAX_ITEMS+1):
-            optimizer.add(And(path[c][j] >= 0, path[c][j] <= n+1))
+            optimizer.add(And(path[c][j] >= IntVal(0), path[c][j] <= IntVal(n+1)))
 
     # Boundaries of path_length's values
     for c in Couriers:
-        optimizer.add(And(path_length[c] >= 3, path_length[c] <= MAX_ITEMS))
+        optimizer.add(And(path_length[c] >= IntVal(3), path_length[c] <= IntVal(MAX_ITEMS)))
 
     # Define initial node and final node
     for c in Couriers:
-        optimizer.add(path[c][1] == n + 1) # Initial node
-        optimizer.add(path[c][path_length[c]] == n + 1)  # Ending node
+        optimizer.add(path[c][1] == IntVal(n + 1)) # Initial node
+        optimizer.add(path[c][path_length[c]] == IntVal(n + 1))  # Ending node
 
-    # Set unvisited Items to zero
+    # Set unvisited items to zero
     for c in Couriers:
         for i in range(1, MAX_ITEMS + 1):
-            optimizer.add(Implies(i > path_length[c], path[c][i] == 0))
+            optimizer.add(Implies(i > path_length[c], path[c][i] == IntVal(0)))
 
     # No courier exceeds its load capacity
     for c in Couriers:    
@@ -125,12 +123,11 @@ def SMT(instance_number):
     # Distance computation
     for c in Couriers:
         # Sum for distances between two non-zero Items
-        dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j]-1, path[c][j+1]-1), 0)
+        dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j]-IntVal(1), path[c][j+1]-IntVal(1)), 0)
                         for j in range(1, MAX_ITEMS)])
         
         # Sum for distances when there's a zero node between two non-zero items
-        # FIXME: allowing zeros in the paths, we have to do this additional computation
-        dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1]-1, path[c][j+1]-1), 0)
+        dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1]-IntVal(1), path[c][j+1]-IntVal(1)), 0)
                         for j in range(1, MAX_ITEMS)])
         
         optimizer.add(total_distance[c] == dist_expr)
@@ -161,7 +158,7 @@ def SMT(instance_number):
         remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)  # in milliseconds
         # we enforce a strict time limit on each individual call to optimizer.check(),
         # s.t. the timout is adjusted dynamically based on the remaining time.
-        optimizer.set(timeout=remaining_time)
+        optimizer.set(timeout = remaining_time)
 
         # CHECK SATISFIABILITY
         if optimizer.check() == sat:
