@@ -13,7 +13,7 @@ import os
 start_time = time.time()
 
 # Choose instance
-NUM_INST = "05"
+NUM_INST = "03"
 
 # IMPORTING INSTANCE
 file_path = os.path.join('project\SMT\Instances', f'inst{NUM_INST}.dat')

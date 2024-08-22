@@ -2,6 +2,37 @@ from z3 import *
 from itertools import combinations
 import uuid
 
+###############################################  READ INSTANCES  ########################################################
+
+def read_dat_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    
+    # Read m and n
+    m = int(lines[0].strip())
+    n = int(lines[1].strip())
+    
+    # Read l vector
+    l = list(map(int, lines[2].strip().split()))
+    
+    # Read s vector
+    s = list(map(int, lines[3].strip().split()))
+    
+    # Read D matrix
+    D = []
+    for line in lines[4:]:
+        D.append(list(map(int, line.strip().split())))
+    
+    return {
+        'm': m,
+        'n': n,
+        'l': l,
+        's': s,
+        'D': D
+    }
+
+###############################################  ENCODINGS  ############################################################
+
 ###################################################################################################### - Naive encodings
 # one
 def at_least_one_np(bool_vars):
@@ -72,8 +103,12 @@ def at_least_k_seq(bool_vars, k, name):
 def at_most_k_seq(bool_vars, k, name):
     constraints = []
     n = len(bool_vars)
-    s = [[Bool(f"s_{name}_{i}_{j}") for j in range(k)] for i in range(n - 1)]
+    if n == 0:
+        return True
+    s = [[Bool(f"s_{name}_{i}_{j}") for j in range(k)] for i in range(max(1, n - 1))]
     constraints.append(Or(Not(bool_vars[0]), s[0][0]))
+    if n == 1:
+        return And(constraints)
     constraints += [Not(s[0][j]) for j in range(1, k)]
     for i in range(1, n-1):
         constraints.append(Or(Not(bool_vars[i]), s[i][0]))
@@ -82,7 +117,7 @@ def at_most_k_seq(bool_vars, k, name):
         for j in range(1, k):
             constraints.append(Or(Not(bool_vars[i]), Not(s[i-1][j-1]), s[i][j]))
             constraints.append(Or(Not(s[i-1][j]), s[i][j]))
-    constraints.append(Or(Not(bool_vars[n-1]), Not(s[n-2][k-1])))   
+    constraints.append(Or(Not(bool_vars[n-1]), Not(s[n-2][k-1])))
     return And(constraints)
 
 def exactly_k_seq(bool_vars, k, name):
