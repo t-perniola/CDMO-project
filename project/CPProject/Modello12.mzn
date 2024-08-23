@@ -67,7 +67,6 @@ constraint
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
-% ora è peggiorato questo
 constraint
     forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
         sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[i, j2] == j2 then 0 else s[j2] endif)
@@ -78,7 +77,6 @@ constraint
     forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
         lex_lesseq([x[z,k1] | k1 in 1..n+1], [x[i,k] | k in 1..n+1])
     )::domain_propagation;
-  
    
 %%%%%%%% OBJECTIVE %%%%%%%%%%
 constraint
