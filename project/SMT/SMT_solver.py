@@ -9,7 +9,7 @@ import os
 # - EUF (uninterpreted functions)
 # - Arrays
 
-def SMT_model(instance_num):
+def SMT_model(instance_num, timeout):
 
     # Record start time
     start_time = time.time()
@@ -42,6 +42,7 @@ def SMT_model(instance_num):
 
     # INITIALIZE the solver
     solver = Solver()
+    solver.set(timeout=timeout)
 
     # HELPER FUNCTIONS
     # - all_different
@@ -144,32 +145,4 @@ def SMT_model(instance_num):
     max_dist = Int('max_dist')
     solver.add([max_dist >= total_distance[c] for c in Couriers])
 
-    # CHECK SATISFIABILITY
-    if solver.check() == sat:
-
-        # Store the model 
-        model = solver.model()
-        
-        # Convert to smt-lib format and store it
-        smtlib_model = solver.to_smt2()
-        
-        # max dist found
-        print(f"\n- Max distance: {model.eval(max_dist)}")
-
-        # Record end time
-        end_time = time.time()
-        # Calculate elapsed time
-        elapsed_time = end_time - start_time
-        print("\n- Elapsed time: {:.2f} seconds".format(elapsed_time))
-
-        return smtlib_model
-
-    else:
-        print("unsat")
-        return None
-    
-smtlib_model = SMT_model("05")
-if smtlib_model:
-    with open(os.path.join("project/SMT", 'smtlib_model.smt2'), 'w') as file:
-        file.write(smtlib_model)
-
+    return solver
