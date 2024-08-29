@@ -1,0 +1,24 @@
+{
+    "instance_number": "05",
+    "time_taken": 2,
+    "max_distance": 206,
+    "courier_paths": {
+        "courier_1": {
+            "path": [
+                4,
+                2,
+                4
+            ],
+            "total_distance": 160
+        },
+        "courier_2": {
+            "path": [
+                4,
+                1,
+                3,
+                4
+            ],
+            "total_distance": 206
+        }
+    }
+}

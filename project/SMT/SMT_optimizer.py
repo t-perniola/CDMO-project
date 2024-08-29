@@ -13,7 +13,7 @@ import os
 start_time = time.time()
 
 # Choose instance
-NUM_INST = "03"
+NUM_INST = "02"
 
 # IMPORTING INSTANCE
 file_path = os.path.join('project\SMT\Instances', f'inst{NUM_INST}.dat')
@@ -140,6 +140,16 @@ for c1 in Couriers:
             # Add symmetry-breaking constraint if load sizes are equal
             sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
             optimizer.add(sym_break_constraint)
+
+'''# Define load utilization variables
+load_utilization = Array('load_utilization', Z, Z)
+for c in Couriers:
+    load_utilization_expr = load[c] - Sum([If(b_path[c][j], size[j], 0) for j in Items])
+    optimizer.add(load_utilization[c] == load_utilization_expr)
+
+# Define a variable for load utilization penalty
+utilization_penalty = Int('utilization_penalty')
+optimizer.add(utilization_penalty == Sum([load_utilization[c] for c in Couriers]))'''
 
 # OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
 max_dist = Int('max_dist')
