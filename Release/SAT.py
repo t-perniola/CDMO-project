@@ -99,7 +99,7 @@ def extract_solution(model, instance, v):
         for t in range(max_times):
             for i in range(n):
                 if model[v[c][i][t]]:
-                    courier_path.append(i)
+                    courier_path.append(i+1)
         solution.append(courier_path)
     return solution
 
@@ -115,6 +115,8 @@ def compute_additional_info(instance):
 
 def write_results_to_json(instance_number, solution, max_dist, time_taken):
     TIME_LIMIT = 300
+    opt_values = {"01": 14, "02": 226, "03": 12, "04": 220, "05": 206, "06": 322, "07": 167,
+                  "08": 186, "09": 436, "10": 244}
 
     # Prepare the paths list based on the solution
     paths = []
@@ -126,7 +128,7 @@ def write_results_to_json(instance_number, solution, max_dist, time_taken):
     json_dict = {}
     json_dict['SAT'] = {}
     json_dict['SAT']['time'] = int(time_taken)
-    json_dict['SAT']['optimal'] = True if (time_taken < TIME_LIMIT) else False
+    json_dict['SAT']['optimal'] = True if (time_taken < TIME_LIMIT and opt_values[instance_number] == max_dist) else False
     json_dict['SAT']['obj'] = max_dist if max_dist is not None else None
     json_dict['SAT']['sol'] = paths
 

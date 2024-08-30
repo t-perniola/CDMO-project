@@ -4,7 +4,7 @@ import json
 import utils
 import time
 
-def SMT(instance_number):
+def SMT(instance_number, sb_bool=False):
 
     start_time = time.time()
     
@@ -41,6 +41,7 @@ def SMT(instance_number):
 
     # INITIALIZE the OPTIMIZER
     optimizer = Solver()
+    optimizer.set("random_seed", 42)
 
     # HELPER FUNCTIONS
     # - all_different
@@ -56,7 +57,6 @@ def SMT(instance_number):
             return False
         # Compare the first elements and recursively check the rest
         return Or(And(Not(a1[0]), a2[0]), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
-        #return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
 
     # CONSTRAINTS
     # Mappings (due to 0-indexing): Z3 Arrays <-> Python arrays
@@ -131,14 +131,15 @@ def SMT(instance_number):
                         for j in range(1, MAX_ITEMS)])
         
         optimizer.add(total_distance[c] == dist_expr)
-
-    # Symmetry breaking: two couriers with the same load size
-    for c1 in Couriers:
-        for c2 in Couriers:
-            if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
-                # Add symmetry-breaking constraint if load sizes are equal
-                sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
-                optimizer.add(sym_break_constraint)
+    
+    # SB constraint: two couriers with the same load size
+    def symmetry_breaking():
+        for c1 in Couriers:
+            for c2 in Couriers:
+                if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
+                    # Add symmetry-breaking constraint if load sizes are equal
+                    sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
+                    optimizer.add(sym_break_constraint)
 
     # OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
     max_dist = Int('max_dist')
@@ -146,6 +147,12 @@ def SMT(instance_number):
 
     TIME_LIMIT = 300
     current_best_max_dist = None
+
+    # Check if symmetry breaking bool is True
+    model_type = 'SMT_noSB'
+    if sb_bool:
+        symmetry_breaking()
+        model_type = "SMT_SB"
 
     while True:
         # Check elapsed time
@@ -179,26 +186,49 @@ def SMT(instance_number):
                     for j in range(2, path_length_c):
                         evaluated_value = model.evaluate(path[c][j]).as_long()
                         if evaluated_value != 0:
-                            path_values.append(evaluated_value-1)
+                            path_values.append(evaluated_value)
                     paths.append(path_values)
                     print(f'Courier {c}: {path_values}')
                 print(f"Current best max distance: {current_best_max_dist}")
                 
-                 # Prepare JSON dictionary
-                json_dict = {}
-                json_dict['SMT'] = {}
-                json_dict['SMT']['time'] = int(floor(time.time() - start_time))
-                json_dict['SMT']['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
-                json_dict['SMT']['obj'] = int(current_best_max_dist) if current_best_max_dist is not None else None
-                json_dict['SMT']['sol'] = paths
-
-                # Write JSON to file
-                with open(f'res/SMT/{str(int(instance_number))}.json', 'w') as outfile:
-                    json.dump(json_dict, outfile)
-
             # Add a constraint to find a better solution in the next iteration
             optimizer.add(max_dist < current_best_max_dist)
 
         else:
             print("unsat")
+            file_path = f'res/SMT/{str(int(instance_number))}.json'
+
+            # check if no sol was found at all
+            if current_best_max_dist is None:
+                json_dict = {}
+                json_dict['time'] = 300
+                json_dict['optimal'] = None
+                json_dict['obj'] = None
+                json_dict['sol'] = None
+
+            else: # if a solution was found
+                json_dict = {}
+                json_dict['time'] = int(floor(time.time() - start_time))
+                json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
+                json_dict['obj'] = int(current_best_max_dist) if current_best_max_dist is not None else None
+                json_dict['sol'] = paths
+
+            # Check if the file already exists
+            if os.path.exists(file_path):
+                # Read the existing JSON data
+                with open(file_path, 'r') as infile:
+                    existing_data = json.load(infile)
+            else:
+                # If the file does not exist, start with an empty dictionary
+                existing_data = {}
+
+            # Add the new entry to the existing data
+            existing_data[model_type] = json_dict
+
+            # Write the updated data back to the file
+            with open(file_path, 'w') as outfile:
+                json.dump(existing_data, outfile, indent=4)
+
             break
+
+
