@@ -17,6 +17,7 @@ def mcp(instance, timeout=3000000):
 
     solver = Solver()
     solver.set("timeout", timeout)
+    solver.set("random_seed", 42)
 
     # VARIABLES
     # - Represent that each courier c picks the item i at the time step t (add 1 for depot)
@@ -110,7 +111,7 @@ def compute_additional_info(instance):
 
     # Number of max_times steps
     max_times = (n // m) + 3
-    additional_info = {"max_times": max_times,}
+    additional_info = {"max_times": max_times}
     return additional_info
 
 def write_results_to_json(instance_number, solution, max_dist, time_taken):

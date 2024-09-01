@@ -1,28 +1,29 @@
 from numpy import floor
 from z3 import *
 import json
-import utils
+from encodings_utils import read_dat_file
 import time
 
 def SMT(instance_number, sb_bool=False):
 
+    # Start the count
     start_time = time.time()
     
     # IMPORTING INSTANCE
     try:
         file_path = os.path.join('Instances', f'inst{instance_number}.dat')
-        instance = utils.read_dat_file(file_path)
+        instance = read_dat_file(file_path)
     except Exception as e:
         print(f"Error reading the instance file: {e}")
         return None
 
+    # DECLARING CONSTANTS
     m = instance['m']
     n = instance['n']
     l = instance['l']
     s = instance['s']
     D = instance['D']
 
-    # DECLARING CONSTANTS
     MAX_ITEMS = (n // m) + 3
     Couriers = range(1, m+1)
     Items = range(1, n+1)
@@ -67,7 +68,7 @@ def SMT(instance_number, sb_bool=False):
     # items' sizes
     for i in range(n):
         optimizer.add(size[i+1] == s[i])
-    # Couriers' laod capacities
+    # Couriers' load capacities
     for c in range(m):
         optimizer.add(load[c+1] == l[c])
 
@@ -90,11 +91,6 @@ def SMT(instance_number, sb_bool=False):
         for i in range(1, MAX_ITEMS + 1):
             optimizer.add(Implies(i > path_length[c], path[c][i] == IntVal(0)))
 
-    # No courier exceeds its load capacity
-    for c in Couriers:    
-        load_expr = Sum([If(b_path[c][j], size[j], 0) for j in Items])
-        optimizer.add(load_expr <= load[c])
-
     # Exactly one item assignment to a courier
     for j in Items:
         optimizer.add(Sum([If(b_path[c][j], 1, 0) for c in Couriers]) == 1)
@@ -106,6 +102,16 @@ def SMT(instance_number, sb_bool=False):
     # Couriers cannot visit same node twice (nor stay in the same node)
     for c in Couriers:
         optimizer.add(distinct_except([path[c][j] for j in range(1, MAX_ITEMS)], [0]))
+    
+    # No courier exceeds its load capacity
+    for c in Couriers:    
+        load_expr = Sum([If(b_path[c][j], size[j], 0) for j in Items])
+        optimizer.add(load_expr <= load[c])
+
+    # The items weight cannot exceed the load size
+    for c in Couriers:
+        optimizer.add(Sum([If(b_path[c][j], size[j], 0) for j in Items]) <= load[c])
+        optimizer.add(Sum([If(j < path_length[c]-1, size[path[c][j]], 0) for j in range(2, MAX_ITEMS)]) <= load[c])
 
     # Channeling: 
     # - b_path -> path
@@ -115,11 +121,6 @@ def SMT(instance_number, sb_bool=False):
             # if b_bath[c][i] is false, then there won't be any path[c][j] == i
             optimizer.add(Implies(Not(b_path[c][i]), And([path[c][j] != i for j in range(1, MAX_ITEMS+1)])))
 
-    # The items weight cannot exceed the load size
-    for c in Couriers:
-        optimizer.add(Sum([If(b_path[c][j], size[j], 0) for j in Items]) <= load[c])
-        optimizer.add(Sum([If(j < path_length[c]-1, size[path[c][j]], 0) for j in range(2, MAX_ITEMS)]) <= load[c])
-                
     # Distance computation
     for c in Couriers:
         # Sum for distances between two non-zero Items
@@ -230,5 +231,3 @@ def SMT(instance_number, sb_bool=False):
                 json.dump(existing_data, outfile, indent=4)
 
             break
-
-

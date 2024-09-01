@@ -1,45 +1,76 @@
 '''
 main.py <approach> <instance_number> if you want to execute a specific instance
 main.py <approach> if you want to execute all the instances
+main.py if you want to execute all the instances over all the approaches
 '''
 
 import sys
-#from MIP import MIP
+import os
+from MIP_PulP import MIP 
 from SMT import SMT
 from CP import CP
+from SAT import SAT
+
+def run_approach(approach, number):
+    match approach:
+        case 'MIP':
+            MIP(number)
+        case 'SMT':
+            SMT(number)
+        case 'CP':
+            CP(number)
+        case 'SAT':
+            SAT(number)
+        case _:
+            print('Invalid parameters')
 
 def run_model(argv):
-    approach = argv[1]
+    approach = ''
+
+    if len(argv) > 1:
+        approach = argv[1]
 
     run_all_instances = False
     if len(argv) == 2:
         run_all_instances = True
     else:
         instance_number = argv[2]
+
+    instance_numbers = []
+    for filename in os.listdir('Instances'):
+        inst_num = filename.split('.')[0][-2:]
+        instance_numbers.append(inst_num)
     
-    if not run_all_instances:
+    if not run_all_instances and len(argv) > 1:
         match approach:
             case 'MIP':
-                print("MIP")
-                #MIP(instance_number)
+                MIP(instance_number)
             case 'SMT':
-                sb_bool = check_sb()
-                SMT(instance_number, sb_bool=sb_bool)
+                SMT(instance_number)
             case 'CP':
                 CP(instance_number)
             case _:
                 print('Invalid parameters')
 
-# ask the user if he want a symm breaking constraint
-def check_sb():
-    user_input = input("Add a symmetry breaking constraint? [y/n]: ").strip().lower()
-    while user_input not in ["y", "n"]:
-        user_input = input("Invalid input. Please enter 'y' for yes or 'n' for no: ").strip().lower()
-    sb_bool = user_input == "y"
-    return sb_bool
+    elif run_all_instances:
+        match approach:
+            case 'MIP':
+                for n in instance_numbers:
+                    MIP(n)
+            case 'SMT':
+                for n in instance_numbers:
+                    SMT(n)
+            case 'CP':
+                for n in instance_numbers:
+                    CP(n)
+            case _:
+                print('Invalid parameters')
+
+    else:
+        for approach in ['CP', 'SMT', 'MIP']:
+            for n in instance_numbers:
+                run_approach(approach, n)
 
 if __name__ == "__main__":
     run_model(sys.argv)
 
-#Example
-#run_model('MIP', '01')
