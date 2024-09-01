@@ -1,130 +1,100 @@
 import os
-import time
-import json
-import datetime
-from minizinc import Instance, Model, Solver, Status
-import utils  # Assuming you have a utils module to read .dat files
-
+from minizinc import Instance, Model, Solver
+import utils
 
 def CP(instance_number):
-    start_time = time.time()
+    # Load the MiniZinc model
+    model = Model()
+    model.add_string("""
+    include "globals.mzn";
+    include "gecode.mzn"; 
 
-    # IMPORTING INSTANCE
-    file_path = os.path.join('Instances', f'inst{instance_number}.dat')
-    instance_data = utils.read_dat_file(file_path)
-
-    m = instance_data['m']
-    n = instance_data['n']
-    l = instance_data['l']
-    s = instance_data['s']
-    D = instance_data['D']
-
-    # MiniZinc model
-    model_code = """
-    include "all_different_except.mzn"; 
-    include "gecode.mzn";
-
-    % Data
     int: m; 
     int: n; 
     array[1..m] of int: l;     
     array[1..n] of int: s;     
-    array[1..n+1, 1..n+1] of int: D;                  
+    array[1..n+1, 1..n+1] of int: D;  
 
-    % Variables
-    array[1..n+m+1] of var 1..n+1: y; 
-    array[0..m] of var 1..m+n+1: ind; 
-    array[1..m] of var n..ceil(n/m)*200: max_distance_per_courier; 
+    array[1..m, 1..n+1] of var 1..n+1: x;
+    int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
+    array[1..m] of var n+1..total: max_distance_per_courier;
 
-    % Constraints 
-    constraint y[1] = n+1;
-    constraint y[n+m+1] = n+1;
-    constraint y[2] != n+1;
-    constraint y[n+m] != n+1;
-    constraint ind[0] = 1;
-    constraint ind[m] = n+m+1;
+    constraint
+        forall(i in 1..m) (
+            subcircuit([x[i, j] | j in 1..n+1])
+        );
+        
+    constraint
+        forall(j in 1..n) (
+            count(i in 1..m)(x[i, j] != j) == 1
+        );
 
-    constraint forall(i in 1..m-1) (y[ind[i]] == n+1);
-    constraint forall(i in 3..n+m-1)(y[i] == n+1 -> y[i-1] != n+1 /\\ y[i+1] != n+1);
-    constraint forall(i in 0..m-1)(ind[i] + ceil(n/m) <= ind[i+1] /\\ ind[i+1]-ind[i]-1 <= n-m+1)::domain_propagation;
+    constraint forall(i in 1..m)(x[i,n+1] != n+1);
+    constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
 
-    constraint all_different_except(y,{n+1})::domain_propagation;
+    constraint
+        forall(i in 1..m)(
+            sum(j1 in 1..n)(
+                if x[i, j1] == j1 then 0 else s[j1] endif
+            ) <= l[i]
+        );
 
-    constraint forall(i in 1..m)(sum(c in ind[i-1]+1..ind[i]-1)(s[y[c]]) <= l[i]);
+    constraint
+        forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
+            sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[i, j2] == j2 then 0 else s[j2] endif)
+        );
 
-    % Distance
-    constraint forall(i in 1..m)(
-        sum(c in ind[i-1]..ind[i]-1)(
-            D[y[c],y[c+1]]
-        ) = max_distance_per_courier[i]
-    );
+    constraint
+        forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
+            lex_lesseq([x[z,k1] | k1 in 1..n+1], [x[i,k] | k in 1..n+1])
+        )::domain_propagation;
 
+    constraint
+        forall(i in 1..m) (
+            max_distance_per_courier[i] = sum([D[j1, x[i, j1]] | j1 in 1..n+1])
+        );
+            
     var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
     solve 
-    :: int_search(y, dom_w_deg, indomain_random) 
-    :: int_search(ind, first_fail, indomain_random)
+    :: int_search(x, dom_w_deg, indomain_random) 
     :: restart_luby(100) 
-    :: relax_and_reconstruct(y, 83)
+    :: relax_and_reconstruct(array1d(x), 83)
     minimize max_distance;
-      
-    % Output results
-    output ["Paths: ", show(y), "\\n",
-            "indexes: ", show(ind), "\\n",
-            "Maximum distance for each courier: ", show(max_distance), "\\n",
-            "ind: ", show(ind), "\\n"
+
+    output [
+        "Paths:\n",
+        concat([concat([show(x[i, j]) ++ " " | j in 1..n+1]) ++ "\n" | i in 1..m]),
+        "Maximum distance: ", show(max_distance), "\n"
     ];
-    """
+    """)
 
-    # Save the model to a file (optional)
-    model_path = "model.mzn"
-    with open(model_path, 'w') as model_file:
-        model_file.write(model_code)
+    # IMPORTING INSTANCE
+    try:
+        file_path = os.path.join('Instances', f'inst{instance_number}.dat')
+        inst = utils.read_dat_file(file_path)
+    except Exception as e:
+        print(f"Error reading the instance file: {e}")
+        return None
 
-    # Load the model
-    model = Model(model_path)
-    solver = Solver.lookup("gecode")
+    # Create a MiniZinc instance
+    gecode = Solver.lookup("gecode")
+    instance = Instance(gecode, model)
 
-    # Create an instance of the model
-    instance = Instance(solver, model)
+    # Add all data from inst to the MiniZinc instance
+    instance.add_data(inst)
 
-    # Set the data for the instance
-    instance["m"] = m
-    instance["n"] = n
-    instance["l"] = l
-    instance["s"] = s
-    instance["D"] = D
+    # Solve the model
+    result = instance.solve()
 
-    # Solve the instance with a time limit of 5 minutes (300 seconds)
-    timeout = datetime.timedelta(seconds=300)
-    result = instance.solve(timeout=timeout)
-
-    # Check if the result is optimal
-    optimal = result.status == Status.OPTIMAL_SOLUTION
-
-    # Extract paths
-    paths = []
-    if optimal:
-        for i in range(m):
-            path = []
-            for j in range(result["ind"][i], result["ind"][i+1]):
-                if result["y"][j] <= n:
-                    path.append(result["y"][j] - 1)
-            paths.append(path)
-
-    # Prepare the result in JSON format
-    result_json = {
-        "Gecode": {
-            "time": round(time.time() - start_time, 2),
-            "optimal": optimal,
-            "obj": result["max_distance"] if optimal else None,
-            "sol": paths
-        }
-    }
-
-    # Save the result in JSON format
-    with open(f'res/CP/{str(int(instance_number))}.json', 'w') as outfile:
-        json.dump(result_json, outfile)
-
-# Example usage
-CP('01')
+    # Output the results
+    if result:
+        x = result["x"]
+        max_distance = result["max_distance"]
+        
+        print("Paths:")
+        for i in range(instance["m"]):
+            print(f"Courier {i + 1}: {' -> '.join(map(str, x[i]))}")
+        print("Maximum distance:", max_distance)
+    else:
+        print("No solution found")

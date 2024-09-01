@@ -1,0 +1,14 @@
+{
+    "SMT_SB": {
+        "time": 300,
+        "optimal": null,
+        "obj": null,
+        "sol": null
+    },
+    "SMT_noSB": {
+        "time": 300,
+        "optimal": null,
+        "obj": null,
+        "sol": null
+    }
+}

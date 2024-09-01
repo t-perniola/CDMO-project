@@ -6,7 +6,7 @@ main.py <approach> if you want to execute all the instances
 import sys
 #from MIP import MIP
 from SMT import SMT
-from SMT_old import SMT_old
+from CP import CP
 
 def run_model(argv):
     approach = argv[1]
@@ -25,8 +25,8 @@ def run_model(argv):
             case 'SMT':
                 sb_bool = check_sb()
                 SMT(instance_number, sb_bool=sb_bool)
-            case "SMT_old":
-                SMT_old(instance_number)
+            case 'CP':
+                CP(instance_number)
             case _:
                 print('Invalid parameters')
 
