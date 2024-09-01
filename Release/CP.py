@@ -1,100 +1,156 @@
 import os
 from minizinc import Instance, Model, Solver
 import utils
+from datetime import timedelta
+import json
+
+def convert_to_dat_format(data_tuple):
+    m, n, l, s, D, lb, ub = data_tuple
+    return {
+        'm': m,
+        'n': n,
+        'l': l,
+        's': s,
+        'D': D,
+        'lb': lb,
+        'ub': ub
+    }
+
+
+def write_results_to_json(instance_number, solution, max_dist, time_taken):
+    TIME_LIMIT = 300
+
+    # Prepare the paths list based on the solution
+    paths = []
+    for courier_path in solution:
+        path = [item for item in courier_path]
+        paths.append(path)
+
+    # Prepare JSON dictionary
+    json_dict = {}
+    json_dict['SAT'] = {}
+    json_dict['SAT']['time'] = int(time_taken)
+    json_dict['SAT']['optimal'] = True if (time_taken < TIME_LIMIT and opt_values[instance_number] == max_dist) else False
+    json_dict['SAT']['obj'] = max_dist if max_dist is not None else None
+    json_dict['SAT']['sol'] = paths
+
+    # Write JSON to file
+    with open(f'res/SAT/{str(int(instance_number))}.json', 'w') as outfile:
+        json.dump(json_dict, outfile)
 
 def CP(instance_number):
     # Load the MiniZinc model
     model = Model()
-    model.add_string("""
-    include "globals.mzn";
-    include "gecode.mzn"; 
-
-    int: m; 
-    int: n; 
-    array[1..m] of int: l;     
-    array[1..n] of int: s;     
-    array[1..n+1, 1..n+1] of int: D;  
-
-    array[1..m, 1..n+1] of var 1..n+1: x;
-    int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
-    array[1..m] of var n+1..total: max_distance_per_courier;
-
-    constraint
-        forall(i in 1..m) (
-            subcircuit([x[i, j] | j in 1..n+1])
-        );
-        
-    constraint
-        forall(j in 1..n) (
-            count(i in 1..m)(x[i, j] != j) == 1
-        );
-
-    constraint forall(i in 1..m)(x[i,n+1] != n+1);
-    constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
-
-    constraint
-        forall(i in 1..m)(
-            sum(j1 in 1..n)(
-                if x[i, j1] == j1 then 0 else s[j1] endif
-            ) <= l[i]
-        );
-
-    constraint
-        forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
-            sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[i, j2] == j2 then 0 else s[j2] endif)
-        );
-
-    constraint
-        forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
-            lex_lesseq([x[z,k1] | k1 in 1..n+1], [x[i,k] | k in 1..n+1])
-        )::domain_propagation;
-
-    constraint
-        forall(i in 1..m) (
-            max_distance_per_courier[i] = sum([D[j1, x[i, j1]] | j1 in 1..n+1])
-        );
-            
-    var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
-
-    solve 
-    :: int_search(x, dom_w_deg, indomain_random) 
-    :: restart_luby(100) 
-    :: relax_and_reconstruct(array1d(x), 83)
-    minimize max_distance;
-
-    output [
-        "Paths:\n",
-        concat([concat([show(x[i, j]) ++ " " | j in 1..n+1]) ++ "\n" | i in 1..m]),
-        "Maximum distance: ", show(max_distance), "\n"
-    ];
-    """)
+    model.add_file("M11.mzn")
 
     # IMPORTING INSTANCE
     try:
         file_path = os.path.join('Instances', f'inst{instance_number}.dat')
-        inst = utils.read_dat_file(file_path)
+        inst = utils.read_dat_file_2(file_path)
+        print("Parsed data from file:", inst)
     except Exception as e:
         print(f"Error reading the instance file: {e}")
         return None
+    
+    # Convert data to the format MiniZinc expects
+    instt = convert_to_dat_format(inst)
 
-    # Create a MiniZinc instance
+    # Create a MiniZinc solver instance
     gecode = Solver.lookup("gecode")
+
+    # Create a MiniZinc instance with the model and data
     instance = Instance(gecode, model)
+    
+    # Pass the data as arguments to the MiniZinc model
+    for key, value in instt.items():
+        instance[key] = value
 
-    # Add all data from inst to the MiniZinc instance
-    instance.add_data(inst)
+    # Set the timeout
+    timeout = timedelta(seconds=10)  # 10 seconds timeout
 
-    # Solve the model
-    result = instance.solve()
+    # Solve the model with the timeout
+    try:
+        result = instance.solve(timeout=timeout)
+    except Exception as e:
+        print(f"Error solving the model: {e}")
+        return None
 
     # Output the results
     if result:
-        x = result["x"]
-        max_distance = result["max_distance"]
-        
-        print("Paths:")
-        for i in range(instance["m"]):
-            print(f"Courier {i + 1}: {' -> '.join(map(str, x[i]))}")
-        print("Maximum distance:", max_distance)
+        # Print available result attributes for debugging
+        print("Available result attributes:")
+        print(dir(result))  # List all attributes
+
+        # Check and print contents of result.solution
+        if hasattr(result, 'solution'):
+            solution = result.solution
+            print("Solution attributes:")
+            print(dir(solution))  # List attributes of solution
+            
+            # Print all available attributes with their values
+            for attr in dir(solution):
+                if not attr.startswith('__'):
+                    try:
+                        value = getattr(solution, attr)
+                        print(f"{attr}: {value}")
+                    except Exception as e:
+                        print(f"Could not access {attr}: {e}")
+
+            # Try to access expected result variables
+            try:
+                # Example for accessing potential attributes (adjust as necessary)
+                x = getattr(solution, 'x', None)
+                max_distance = getattr(solution, 'max_distance', None)
+
+                if x is None or max_distance is None:
+                    print("One or more expected result variables not found.")
+                else:
+                    print("Paths:")
+                    for i in range(instt['m']):
+                        path = " -> ".join(map(str, x[i]))
+                        print(f"Courier {i + 1}: {path}")
+                    print("Maximum distance:", max_distance)
+
+            except AttributeError as e:
+                print(f"Error accessing result attributes: {e}")
+        else:
+            print("Solution attribute not found.")
     else:
         print("No solution found")
+
+
+def main(instance_number):
+    CP(instance_number)
+
+if __name__ == "__main__":
+    path = os.path.join(os.getcwd(), 'Desktop/UNIBO AI/Combinatorial and DecisionMaking/ProjectWork/Release')
+    print(path)
+    os.chdir(path)
+    instance_number = "01"  # Example instance number
+    main(instance_number)
+
+
+
+
+    json_dict['time'] = int(floor(time.time() - start_time))
+    json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
+    json_dict['obj'] = int(current_best_max_dist) if current_best_max_dist is not None else None
+    json_dict['sol'] = paths
+
+    # Check if the file already exists
+    if os.path.exists(file_path):
+        # Read the existing JSON data
+        with open(file_path, 'r') as infile:
+            existing_data = json.load(infile)
+    else:
+        # If the file does not exist, start with an empty dictionary
+        existing_data = {}
+
+    # Add the new entry to the existing data
+    existing_data[model_type] = json_dict
+
+    # Write the updated data back to the file
+    with open(file_path, 'w') as outfile:
+        json.dump(existing_data, outfile, indent=4)
+
+    break
