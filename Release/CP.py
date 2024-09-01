@@ -3,6 +3,8 @@ from minizinc import Instance, Model, Solver
 import utils
 from datetime import timedelta
 import json
+import time
+from math import floor
 
 def convert_to_dat_format(data_tuple):
     m, n, l, s, D, lb, ub = data_tuple
@@ -16,27 +18,30 @@ def convert_to_dat_format(data_tuple):
         'ub': ub
     }
 
-
-def write_results_to_json(instance_number, solution, max_dist, time_taken):
-    TIME_LIMIT = 300
-
-    # Prepare the paths list based on the solution
-    paths = []
-    for courier_path in solution:
-        path = [item for item in courier_path]
-        paths.append(path)
-
-    # Prepare JSON dictionary
+def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT=10):
+    file_path = f'res/SAT/{str(int(instance_number))}.json'
     json_dict = {}
-    json_dict['SAT'] = {}
-    json_dict['SAT']['time'] = int(time_taken)
-    json_dict['SAT']['optimal'] = True if (time_taken < TIME_LIMIT and opt_values[instance_number] == max_dist) else False
-    json_dict['SAT']['obj'] = max_dist if max_dist is not None else None
-    json_dict['SAT']['sol'] = paths
+    json_dict['time'] = int(floor(time.time() - start_time))
+    json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
+    json_dict['obj'] = int(dist) if dist is not None else None
+    json_dict['sol'] = paths
 
-    # Write JSON to file
-    with open(f'res/SAT/{str(int(instance_number))}.json', 'w') as outfile:
-        json.dump(json_dict, outfile)
+    # Check if the file already exists
+    if os.path.exists(file_path):
+        # Read the existing JSON data
+        with open(file_path, 'r') as infile:
+            existing_data = json.load(infile)
+    else:
+        # If the file does not exist, start with an empty dictionary
+        existing_data = {}
+
+    # Add the new entry to the existing data
+    model_type = 'CP'  # Assuming model_type to be 'CP', adjust as needed
+    existing_data[model_type] = json_dict
+
+    # Write the updated data back to the file
+    with open(file_path, 'w') as outfile:
+        json.dump(existing_data, outfile, indent=4)
 
 def CP(instance_number):
     # Load the MiniZinc model
@@ -68,6 +73,9 @@ def CP(instance_number):
     # Set the timeout
     timeout = timedelta(seconds=10)  # 10 seconds timeout
 
+    # Start timing
+    start_time = time.time()
+
     # Solve the model with the timeout
     try:
         result = instance.solve(timeout=timeout)
@@ -77,16 +85,16 @@ def CP(instance_number):
 
     # Output the results
     if result:
-        # Print available result attributes for debugging
-        print("Available result attributes:")
-        print(dir(result))  # List all attributes
 
         # Check and print contents of result.solution
         if hasattr(result, 'solution'):
             solution = result.solution
             print("Solution attributes:")
-            print(dir(solution))  # List attributes of solution
             
+            # Initialize variables for JSON output
+            paths = []
+            max_distance = None
+
             # Print all available attributes with their values
             for attr in dir(solution):
                 if not attr.startswith('__'):
@@ -100,19 +108,24 @@ def CP(instance_number):
             try:
                 # Example for accessing potential attributes (adjust as necessary)
                 x = getattr(solution, 'x', None)
-                max_distance = getattr(solution, 'max_distance', None)
+                max_distance = getattr(solution, 'objective', None)
 
                 if x is None or max_distance is None:
                     print("One or more expected result variables not found.")
                 else:
                     print("Paths:")
                     for i in range(instt['m']):
-                        path = " -> ".join(map(str, x[i]))
-                        print(f"Courier {i + 1}: {path}")
+                        path = list(map(int, x[i]))  # Convert to list of ints
+                        paths.append(path)  # Store path for JSON
+                        print(f"Courier {i + 1}: {' -> '.join(map(str, path))}")
                     print("Maximum distance:", max_distance)
 
             except AttributeError as e:
                 print(f"Error accessing result attributes: {e}")
+            
+            # Save results to JSON
+            json_fun(instance_number, max_distance, paths, start_time)
+
         else:
             print("Solution attribute not found.")
     else:
@@ -126,31 +139,5 @@ if __name__ == "__main__":
     path = os.path.join(os.getcwd(), 'Desktop/UNIBO AI/Combinatorial and DecisionMaking/ProjectWork/Release')
     print(path)
     os.chdir(path)
-    instance_number = "01"  # Example instance number
+    instance_number = "05"  # Example instance number
     main(instance_number)
-
-
-
-
-    json_dict['time'] = int(floor(time.time() - start_time))
-    json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
-    json_dict['obj'] = int(current_best_max_dist) if current_best_max_dist is not None else None
-    json_dict['sol'] = paths
-
-    # Check if the file already exists
-    if os.path.exists(file_path):
-        # Read the existing JSON data
-        with open(file_path, 'r') as infile:
-            existing_data = json.load(infile)
-    else:
-        # If the file does not exist, start with an empty dictionary
-        existing_data = {}
-
-    # Add the new entry to the existing data
-    existing_data[model_type] = json_dict
-
-    # Write the updated data back to the file
-    with open(file_path, 'w') as outfile:
-        json.dump(existing_data, outfile, indent=4)
-
-    break
