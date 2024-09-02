@@ -32,9 +32,12 @@ constraint
         count(i in 1..m)(x[i, j] != j) == 1
     );
 
-constraint alldifferent([x[i, n+1] | i in 1..m])::domain_propagation;
 constraint forall(i in 1..m)(x[i,n+1] != n+1);
 constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
+
+
+% Implicit constraint 
+constraint alldifferent([x[i, n+1] | i in 1..m])::domain_propagation;
 
 
 
@@ -60,6 +63,8 @@ var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 solve 
 :: int_search(x, dom_w_deg, indomain_random) 
+%:: int_search(x, first_fail, indomain_min)
+%:: int_search(b_y, first_fail, indomain_min)
 :: restart_luby(100) 
 :: relax_and_reconstruct(array1d(x), 83)
 minimize max_distance;

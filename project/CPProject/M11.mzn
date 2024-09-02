@@ -29,9 +29,12 @@ constraint
         count(i in 1..m)(x[i, j] != j) == 1
     );
 
-constraint alldifferent([x[i, n+1] | i in 1..m])::domain_propagation;
 constraint forall(i in 1..m)(x[i,n+1] != n+1);
 constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
+
+
+% Implicit constraint 
+constraint alldifferent([x[i, n+1] | i in 1..m])::domain_propagation;
 
 
 %Pruning
@@ -39,12 +42,13 @@ constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] != j) <= ceil(n/m)+1);
 
 /*
 constraint 
-    forall(i in 1..m-1)(count(j in 1..n)(x[i, j] != j) >= count(j1 in 1..n)(x[i+1, j1] != j1));
+    forall(i in 1..m-1, z in i+1..m where z>i)(count(j in 1..n)(x[i, j] != j) >= count(j1 in 1..n)(x[i+1, j1] != j1));
+    
    
 constraint
-    forall(i in 1..m-1)(
-        sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[i+1, j2] == j2 then 0 else s[j2] endif)
-    );  
+    forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
+        sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[z, j2] == j2 then 0 else s[j2] endif)
+    );
 
 
 */ 
@@ -60,11 +64,10 @@ constraint
 
 
 %%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
-
 constraint
-    forall(i in 1..m-1 where l[i] == l[i+1])(
-        lex_lesseq([x[i,k1] | k1 in 1..n+1], [x[i+1,k] | k in 1..n+1])
-    );
+    forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
+        lex_lesseq([x[z,k1] | k1 in 1..n+1], [x[i,k] | k in 1..n+1])
+    )::domain_propagation;
     
        
    
