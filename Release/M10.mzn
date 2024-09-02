@@ -1,6 +1,7 @@
 include "globals.mzn";
 include "gecode.mzn"; 
 
+
 % Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int: m; 
 int: n; 
@@ -11,6 +12,8 @@ int: lb;
 int: ub;
 
 % Variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% x[i, j1] = j2 means that the ith courier will go from the j1th node to the j2th node
+% if x[i, k] = k then the courier i is not going to visit the node k
 array[1..m, 1..n+1] of var 1..n+1: x;
 array[1..m] of var lb..ub: max_distance_per_courier; % Maximum distance traveled by each courier
 
@@ -37,21 +40,6 @@ constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
 constraint alldifferent([x[i, n+1] | i in 1..m])::domain_propagation;
 
 
-%Pruning
-constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] != j) <= ceil(n/m)+1); 
-
-/*
-constraint 
-    forall(i in 1..m-1, z in i+1..m where z>i)(count(j in 1..n)(x[i, j] != j) >= count(j1 in 1..n)(x[i+1, j1] != j1));
-    
-   
-constraint
-    forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
-        sum(j1 in 1..n)(if x[i, j1] == j1 then 0 else s[j1] endif) >= sum(j2 in 1..n)(if x[z, j2] == j2 then 0 else s[j2] endif)
-    );
-
-
-*/ 
 
 
 constraint
@@ -60,16 +48,9 @@ constraint
             if x[i, j1] == j1 then 0 else s[j1] endif
         ) <= l[i]
     );
-
-
-
-%%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
-constraint
-    forall(i in 1..m-1, z in i+1..m where z>i /\ l[i] == l[z])(
-        lex_lesseq([x[z,k1] | k1 in 1..n+1], [x[i,k] | k in 1..n+1])
-    )::domain_propagation;
-    
-       
+ 
+   
+   
    
 %%%%%%%% OBJECTIVE %%%%%%%%%%
 constraint

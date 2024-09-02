@@ -177,10 +177,6 @@ def read_dat_file_2(file_path):
     lb = heuristic_number_of_nodes_per_courier * minD
     ub = heuristic_number_of_nodes_per_courier * maxD
 
-
-    # Order the load array l in descending order
-    l.sort(reverse=True) 
-
     return m, n, l, s, D, lb, ub
 
 

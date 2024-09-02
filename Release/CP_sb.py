@@ -36,7 +36,7 @@ def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT=10):
         existing_data = {}
 
     # Add the new entry to the existing data
-    model_type = 'CP_noSB'  # Assuming model_type to be 'CP', adjust as needed
+    model_type = 'CP_SB'  # Assuming model_type to be 'CP', adjust as needed
     existing_data[model_type] = json_dict
 
     # Write the updated data back to the file
@@ -59,7 +59,7 @@ def reorder_path(start, path):
 def CP(instance_number):
     # Load the MiniZinc model
     model = Model()
-    model.add_file("M10.mzn")
+    model.add_file("M11.mzn")
 
     # IMPORTING INSTANCE
     try:

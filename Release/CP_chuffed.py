@@ -36,7 +36,7 @@ def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT=10):
         existing_data = {}
 
     # Add the new entry to the existing data
-    model_type = 'CP_noSB'  # Assuming model_type to be 'CP', adjust as needed
+    model_type = 'CP_chuffed'  # Assuming model_type to be 'CP', adjust as needed
     existing_data[model_type] = json_dict
 
     # Write the updated data back to the file
@@ -56,10 +56,10 @@ def reorder_path(start, path):
     return ordered_path
 
 
-def CP(instance_number):
+def CP_chuffed(instance_number):
     # Load the MiniZinc model
     model = Model()
-    model.add_file("M10.mzn")
+    model.add_file("M12.mzn")
 
     # IMPORTING INSTANCE
     try:
@@ -74,7 +74,7 @@ def CP(instance_number):
     instt = convert_to_dat_format(inst)
 
     # Create a MiniZinc solver instance
-    gecode = Solver.lookup("gecode")
+    gecode = Solver.lookup("chuffed")
 
     # Create a MiniZinc instance with the model and data
     instance = Instance(gecode, model)
@@ -144,7 +144,7 @@ def CP(instance_number):
         print("No solution found")
 
 def main(instance_number):
-    CP(instance_number)
+    CP_chuffed(instance_number)
 
 if __name__ == "__main__":
     print(os.getcwd())
