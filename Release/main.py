@@ -49,6 +49,8 @@ def run_model(argv):
                 SMT(instance_number)
             case 'CP':
                 CP(instance_number)
+            case 'SAT':
+                SAT(instance_number)
             case _:
                 print('Invalid parameters')
 
@@ -63,6 +65,9 @@ def run_model(argv):
             case 'CP':
                 for n in instance_numbers:
                     CP(n)
+            case 'SAT':
+                for n in instance_numbers:
+                    SAT(n)
             case _:
                 print('Invalid parameters')
 

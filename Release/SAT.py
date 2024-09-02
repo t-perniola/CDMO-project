@@ -78,8 +78,8 @@ def compute_distances(solution, instance):
         depot = n  # Starting node
         for node in courier_solution:
             if node != depot:
-                total_distance += distances[depot][node]
-                depot = node
+                total_distance += distances[depot][node-1]
+                depot = node-1
         total_distance += distances[depot][n]  # Return to starting node
         distances_dict[i] = total_distance
 
@@ -137,7 +137,7 @@ def write_results_to_json(instance_number, solution, max_dist, time_taken):
     with open(f'res/SAT/{str(int(instance_number))}.json', 'w') as outfile:
         json.dump(json_dict, outfile)
 
-def main(instance_number):
+def SAT(instance_number):
     start_time = time.time()
     
     # Importing specified instance
@@ -160,13 +160,10 @@ def main(instance_number):
         distances_dict = compute_distances(solution, instance)
         max_dist = compute_max_dist(distances_dict)
         time_taken = time.time() - start_time
+        
         print(f"\nObj. function value, max dist: {max_dist}")
+
         write_results_to_json(instance_number, solution, max_dist, time_taken)
     else:
         print("unsat")
 
-# TODO remove later
-if __name__ == "__main__":
-    instance_number = "03"  # Example instance number
-    os.chdir("Release")
-    main(instance_number)

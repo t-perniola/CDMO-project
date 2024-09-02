@@ -157,5 +157,3 @@ def MIP(instance_number):
 
     with open(f'res/MIP/{str(int(instance_number))}.json', 'w') as outfile:
         json.dump(json_dict, outfile)
-    
-MIP('07')
