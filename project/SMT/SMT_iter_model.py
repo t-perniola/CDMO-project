@@ -1,6 +1,7 @@
 from z3 import *
 from utils import *
 import time
+import os
 
 # NOTE: THEORIES USED
 # - Boolean Logic
@@ -13,10 +14,11 @@ start_time = time.time()
 
 # IMPORTING INSTANCES
 # Directory containing .dat files
-directory = 'project\SMT\Instances'
+print(os.getcwd())
+directory = 'Instances'
 
 # Choose the instance
-NUM_INST = 2
+NUM_INST = 5
 
 # Read all .dat files and populate instances
 instances = read_all_dat_files(directory)
@@ -36,16 +38,21 @@ print(f"Instance {NUM_INST} chosen \nnum Couriers: {m}, num items: {n}")
 # DECLARING VARIABLES USING SMT SORTS
 Z = IntSort()
 B = BoolSort()
-b_path = Array("b_path", Z, ArraySort(Z, B)) # create a boolean matrix
-load = Array('load', Z, Z)
+
+# - to handle symbolic expressions errors
+load = Array('load', Z, Z) 
 size = Array('size', Z, Z)
-path = Array('path', Z, ArraySort(Z, Z)) # create an integer matrix
-path_length = Array('path', Z, Z)
-total_distance = Array('total_distance', Z, Z)
 D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and returns an integer (distance)
+
+# - variables to be optimized
+b_path = Array("b_path", Z, ArraySort(Z, B)) # create a boolean matrix
+path = Array('path', Z, ArraySort(Z, Z)) # create an integer matrix
+path_length = Array('path', Z, Z) # to store the length of the path
+total_distance = Array('total_distance', Z, Z) # to store the total distance traveled by each courier
 
 # INITIALIZE the OPTIMIZER
 optimizer = Solver()
+optimizer.set("random_seed", 42)
 
 # HELPER FUNCTIONS
 # - all_different
