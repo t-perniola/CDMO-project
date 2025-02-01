@@ -15,7 +15,7 @@ up to you.
    Using (2.2) you run the program over all the instances using the approach <approach>;
    Using (2.3) you run the program over all the instances using all the approaches;
 
-   <approach> takes the values 'CP', 'SMT' or 'MIP'
+   <approach> takes the values 'CP', 'SAT', 'SMT' or 'MIP'
    <instance_number> must be in the format '0x' for the instances having number lower than 10, and 'x' for 
    the instances having number up to 21.
 
@@ -26,6 +26,6 @@ mount a volume using the command "docker volume create <volume_name>" and then y
 following command "docker run --rm -v <volume_name>:/res <image_name> <args>"
 
 Note that, since the MIP model is very huge, you may need an active academic licence in order to use the library.
-At this purpose I put in the res/MIP folder the json I generated with my licence, just for check.
+At this purpose we put in the res/MIP folder the json I generated with my licence, just for check.
 
-In order to simply check the output in the volume, you may use docker desktop.
+In order to simply check the output in the volume, you may use Docker desktop.
