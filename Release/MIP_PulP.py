@@ -127,7 +127,9 @@ def MIP(instance_number):
     preprocessing_time = datetime.now() - starting_time
     safe_bound = 5
 
-    model.solve(lp.PULP_CBC_CMD(timeLimit=time_limit - preprocessing_time.seconds - safe_bound, msg=False))
+    effective_time_limit = time_limit - preprocessing_time.seconds - safe_bound
+    model.solve(lp.PULP_CBC_CMD(timeLimit=effective_time_limit, msg=False, warmStart=True))
+
     print(f"Objective value (max dist) = {lp.value(model.objective)}")
     end_time = datetime.now() - starting_time
 

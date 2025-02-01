@@ -6,7 +6,8 @@ main.py if you want to execute all the instances over all the approaches
 
 import sys
 import os
-from MIP_PulP import MIP 
+from MIP_Gurobi import MIP as MIP_Gurobi
+from MIP_PulP import MIP as MIP_PulP
 from SMT import SMT
 from CP import CP
 
@@ -31,7 +32,8 @@ def run_model(argv):
     if not run_all_instances and len(argv) > 1:
         match approach:
             case 'MIP':
-                MIP(instance_number)
+                gurobi_bool = input("Use Gurobi as solver? (y/n): ").strip().lower() == 'y'
+                MIP_Gurobi(instance_number) if gurobi_bool else MIP_PulP(instance_number)
             case 'SMT':
                 sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
                 bin_search_bool = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower() == 'y'
@@ -50,7 +52,7 @@ def run_model(argv):
         match approach:
             case 'MIP':
                 for n in instance_numbers:
-                    MIP(n)
+                    MIP_PulP(n)
             case 'SMT':
                 for n in instance_numbers:
                     SMT(n)
@@ -71,11 +73,13 @@ def run_model(argv):
 def run_approach(approach, number):
     match approach:
         case 'MIP':
-            MIP(number)
+            MIP_PulP(number)
         case 'SMT':
             SMT(number)
         case 'CP':
             CP(number)
+        #case 'SAT':
+        #    SAT(number)
         case _:
             print('Invalid parameters')
 

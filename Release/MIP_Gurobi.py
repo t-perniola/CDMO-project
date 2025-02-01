@@ -178,6 +178,10 @@ def MIP(instance_number):
     safe_bound = 5
     model.setParam('TimeLimit', time_limit - preprocessing_time.seconds - safe_bound)
 
+    # Reduce verbosity
+    model.Params.OutputFlag = 0
+
+    # Optimize the model
     model.optimize(update_upper_bound)
 
     sol = []
@@ -196,6 +200,3 @@ def MIP(instance_number):
 
     with open(f'res/MIP/{str(int(instance_number))}.json', 'w') as outfile:
         json.dump(json_dict, outfile)
-
-
-MIP('09')

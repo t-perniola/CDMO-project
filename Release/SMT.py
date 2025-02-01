@@ -273,7 +273,7 @@ def save_results(instance_number, model_type, best_solution, paths, start_time):
     with open(file_path, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4, separators=(",", ": "))
 
-def SMT(instance_number, bin_search_bool=False, sb_bool=True):
+def SMT(instance_number, bin_search_bool=True, sb_bool=False):
 
     print(f"\nRunning SMT model on instance {instance_number} {'with symmetry breaking' if sb_bool else 'without SB'} and {'binary search' if bin_search_bool else 'branch and bound search'}:")
 
