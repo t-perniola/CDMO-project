@@ -1,12 +1,10 @@
 from numpy import floor
 from z3 import *
-from utils import read_dat_file_2
 import json
+from utils import *
 import time
 
-TIME_LIMIT = 300
-
-def init_solver(instance_number, sb_bool):
+def SMT(instance_number, sb_bool=False):
 
     # Start the count
     start_time = time.time()
@@ -31,7 +29,7 @@ def init_solver(instance_number, sb_bool):
     MAX_ITEMS = (n // m) + 3
     Couriers = range(1, m+1)
     Items = range(1, n+1)
-    #print(f"Instance {instance_number} chosen \nnum Couriers: {m}, num items: {n}")
+    print(f"Instance {instance_number} chosen \nnum Couriers: {m}, num items: {n}")
 
     # DECLARING VARIABLES USING SMT SORTS
     Z = IntSort()
@@ -138,7 +136,7 @@ def init_solver(instance_number, sb_bool):
         optimizer.add(total_distance[c] == dist_expr)
     
     # SB constraint: two couriers with the same load size
-    if sb_bool:
+    def symmetry_breaking():
         for c1 in Couriers:
             for c2 in Couriers:
                 if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
@@ -150,150 +148,88 @@ def init_solver(instance_number, sb_bool):
     max_dist = Int('max_dist')
     optimizer.add([max_dist >= total_distance[c] for c in Couriers])
 
-    return optimizer, {
-        
-        "m": m, "n": n, "MAX_ITEMS": MAX_ITEMS, "Couriers": Couriers, "Items": Items, "path": path, 
-        "path_length": path_length, "total_distance": total_distance, "b_path": b_path, "size": size, "load": load,
-        "D_func": D_func, "lb": lb, "ub": ub, "start_time": start_time, "max_dist": max_dist
-    }
+    TIME_LIMIT = 300
+    current_best_max_dist = None
 
-# IMPLEMENT BRANCH AND BOUND SEARCH
-def branch_and_bound(optimizer, params):
-    current_best_max_dist = params['ub']  # Use upper bound as initial best solution
-    max_dist = params['max_dist']
-    paths = []
-    found_solution = False  # Track if we ever find a valid solution
-
-    # Add initial lower bound constraint
-    optimizer.add(max_dist >= params['lb'])
+    # Check if symmetry breaking bool is True
+    model_type = 'SMT_noSB'
+    if sb_bool:
+        symmetry_breaking()
+        model_type = "SMT_SB"
 
     while True:
-        elapsed_time = time.time() - params['start_time']
+        # Check elapsed time
+        elapsed_time = time.time() - start_time
         if elapsed_time > TIME_LIMIT:
             print("\nTime limit reached.")
             break
 
-        optimizer.set(timeout=int(max(TIME_LIMIT - elapsed_time, 1) * 1000))
+        # Set timeout for each solver call to the remaining time
+        remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)  # in milliseconds
+        # we enforce a strict time limit on each individual call to optimizer.check(),
+        # s.t. the timout is adjusted dynamically based on the remaining time.
+        optimizer.set(timeout = remaining_time)
 
+        # CHECK SATISFIABILITY
         if optimizer.check() == sat:
-            found_solution = True  # Mark that we found at least one solution
             model = optimizer.model()
-            current_max_dist = max(model.eval(params['total_distance'][c]).as_long() for c in params['Couriers'])
+
+            # Evaluate the maximum distance traveled by any courier
+            current_max_dist = max(model.eval(total_distance[c]).as_long() for c in Couriers)
 
             if current_best_max_dist is None or current_max_dist < current_best_max_dist:
                 current_best_max_dist = current_max_dist
+
+                # Print the current best solution
+                print("\nCurrent best solution:")
                 paths = []
-
-                for c in params['Couriers']:
-                    path_length_c = model.eval(params['path_length'][c]).as_long()
-                    path_values = [
-                        model.eval(params['path'][c][j]).as_long()
-                        for j in range(2, path_length_c) if model.eval(params['path'][c][j]).as_long() != 0
-                    ]
+                for c in Couriers:
+                    path_length_c = model.eval(path_length[c]).as_long()
+                    path_values = []
+                    for j in range(2, path_length_c):
+                        evaluated_value = model.evaluate(path[c][j]).as_long()
+                        if evaluated_value != 0:
+                            path_values.append(evaluated_value)
                     paths.append(path_values)
+                    print(f'Courier {c}: {path_values}')
+                print(f"Current best max distance: {current_best_max_dist}")
+                
+            # Add a constraint to find a better solution in the next iteration
+            optimizer.add(max_dist < current_best_max_dist)
 
-            if current_best_max_dist > params['lb']:  # Ensure we don't go below lb
-                optimizer.add(Int('max_dist') < current_best_max_dist)
         else:
-            break  # No better solution found, terminate search
+            print("unsat")
+            file_path = f'res/SMT/{str(int(instance_number))}.json'
 
-    if not found_solution:
-        return None, []
+            # check if no sol was found at all
+            if current_best_max_dist is None:
+                json_dict = {}
+                json_dict['time'] = 300
+                json_dict['optimal'] = None
+                json_dict['obj'] = None
+                json_dict['sol'] = None
 
-    return current_best_max_dist, paths
+            else: # if a solution was found
+                json_dict = {}
+                json_dict['time'] = int(floor(time.time() - start_time))
+                json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
+                json_dict['obj'] = int(current_best_max_dist) if current_best_max_dist is not None else None
+                json_dict['sol'] = paths
 
+            # Check if the file already exists
+            if os.path.exists(file_path):
+                # Read the existing JSON data
+                with open(file_path, 'r') as infile:
+                    existing_data = json.load(infile)
+            else:
+                # If the file does not exist, start with an empty dictionary
+                existing_data = {}
 
-# IMPLEMENT BINARY SEARCH
-def binary_search(optimizer, params):
-    lb, ub = params['lb'], params['ub']
-    max_dist = params['max_dist']
-    best_solution = None
-    best_paths = []
-    found_solution = False  # Track if we ever find a valid solution
+            # Add the new entry to the existing data
+            existing_data[model_type] = json_dict
 
-    while lb < ub:
-        elapsed_time = time.time() - params['start_time']
-        if elapsed_time > TIME_LIMIT:
-            print("\nTime limit reached.")
+            # Write the updated data back to the file
+            with open(file_path, 'w') as outfile:
+                json.dump(existing_data, outfile, indent=4)
+
             break
-
-        mid = (lb + ub) // 2
-        optimizer.push()  # Save current solver state
-        optimizer.add(max_dist <= mid)
-
-        optimizer.set(timeout=int(max(TIME_LIMIT - elapsed_time, 1) * 1000))
-
-        if optimizer.check() == sat:
-            found_solution = True  # Mark that we found at least one solution
-            model = optimizer.model()
-            best_solution = mid
-            best_paths = []
-
-            for c in params['Couriers']:
-                path_length_c = model.eval(params['path_length'][c]).as_long()
-                path_values = [
-                    model.eval(params['path'][c][j]).as_long()
-                    for j in range(2, path_length_c) if model.eval(params['path'][c][j]).as_long() != 0
-                ]
-                best_paths.append(path_values)
-
-            ub = mid  # Try to find a smaller objective value
-        else:
-            lb = mid + 1  # Increase the lower bound
-        optimizer.pop()  # Restore solver state
-
-    if not found_solution:
-        return None, []
-
-    return best_solution, best_paths
-
-
-def save_results(instance_number, model_type, best_solution, paths, start_time):
-    """ Saves results into a JSON file. """
-    file_path = f'res/SMT/{str(int(instance_number))}.json'
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-    end_time = int(floor(time.time() - start_time))
-
-    json_dict = {
-        'time': TIME_LIMIT if end_time > TIME_LIMIT else end_time,
-        'optimal': best_solution is not None and (time.time() - start_time < TIME_LIMIT),
-        'obj': int(best_solution) if best_solution is not None else None,
-        'sol': paths
-    }
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as infile:
-            existing_data = json.load(infile)
-    else:
-        existing_data = {}
-
-    existing_data[model_type] = json_dict
-
-    with open(file_path, 'w') as outfile:
-        json.dump(existing_data, outfile, indent=4, separators=(",", ": "))
-
-def SMT(instance_number, bin_search_bool=False, sb_bool=True):
-
-    print(f"\nRunning SMT model on instance {instance_number} {'with symmetry breaking' if sb_bool else 'without SB'} and {'binary search' if bin_search_bool else 'branch and bound search'}:")
-
-    optimizer, params = init_solver(instance_number, sb_bool)
-    if optimizer is None:
-        return
-
-    model_type = f"SMT_{'SB' if sb_bool else 'noSB'}_{'bin' if bin_search_bool else 'BB'}"
-
-    if bin_search_bool:
-        best_solution, paths = binary_search(optimizer, params)
-    else:
-        best_solution, paths = branch_and_bound(optimizer, params)
-
-    if best_solution is None:
-        print("Objective value (max dist): No feasible solution found (UNSAT).")
-        return
-    else:
-        print(f"Objective value (max dist): {best_solution}")
-
-    save_results(instance_number, model_type, best_solution, paths, params['start_time'])
-
-    

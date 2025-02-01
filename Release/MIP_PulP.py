@@ -57,6 +57,7 @@ def MIP(instance_number):
     minL = np.min(s)
     heuristic_number_of_nodes_per_courier = np.ceil(n/m) +3
 
+    print(f"Running MIP PulP model on instance {instance_number}:")
 
     max_total_dist = lp.LpVariable("MaxTotalDist", cat='Integer')
 
@@ -126,8 +127,8 @@ def MIP(instance_number):
     preprocessing_time = datetime.now() - starting_time
     safe_bound = 5
 
-    model.solve(lp.PULP_CBC_CMD(timeLimit=time_limit - preprocessing_time.seconds - safe_bound))
-    print(f"Objective value = {lp.value(model.objective)}")
+    model.solve(lp.PULP_CBC_CMD(timeLimit=time_limit - preprocessing_time.seconds - safe_bound, msg=False))
+    print(f"Objective value (max dist) = {lp.value(model.objective)}")
     end_time = datetime.now() - starting_time
 
     sol = []

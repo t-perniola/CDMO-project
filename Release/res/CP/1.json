@@ -1,0 +1,30 @@
+{
+    "CP_gecode_SB": {
+        "time": 300,
+        "optimal": false,
+        "obj": 15,
+        "sol": [
+            [
+                7,
+                1,
+                2,
+                5
+            ],
+            []
+        ]
+    },
+    "CP_gecode_noSB": {
+        "time": 301,
+        "optimal": false,
+        "obj": 15,
+        "sol": [
+            [
+                7,
+                1,
+                2,
+                5
+            ],
+            []
+        ]
+    }
+}

@@ -1,5 +1,5 @@
 from z3 import *
-from utils import *
+from utils import read_dat_file_2, draw_graph
 import time
 import os
 
@@ -13,27 +13,24 @@ import os
 start_time = time.time()
 
 # IMPORTING INSTANCES
-# Directory containing .dat files
-print(os.getcwd())
-directory = 'Instances'
+instance_number = "10"
 
-# Choose the instance
-NUM_INST = 5
+file_path = os.path.join('Instances', f'inst{instance_number}.dat')
+instance = read_dat_file_2(file_path)
 
-# Read all .dat files and populate instances
-instances = read_all_dat_files(directory)
-instance = instances[NUM_INST-1] # extract the corresp. instance
 m = instance['m']
 n = instance['n']
 l = instance['l']
 s = instance['s']
 D = instance['D']
+lb = instance['lb']
+ub = instance['ub']
 
 # DECLARING CONSTANTS
 MAX_ITEMS = (n // m) + 3
 Couriers = range(1, m+1)
 Items = range(1, n+1)
-print(f"Instance {NUM_INST} chosen \nnum Couriers: {m}, num items: {n}")
+print(f"Instance {instance_number} chosen \nnum Couriers: {m}, num items: {n}")
 
 # DECLARING VARIABLES USING SMT SORTS
 Z = IntSort()

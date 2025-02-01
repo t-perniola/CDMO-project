@@ -1,6 +1,7 @@
 from z3 import *
 from utils import *
 import time
+import os
 
 # NOTE: THEORIES USED
 # - Boolean Logic
@@ -12,46 +13,64 @@ import time
 start_time = time.time()
 
 # IMPORTING INSTANCES
-# Directory containing .dat files
-directory = 'project/SMT/Instances'
-
 # Choose the instance
-NUM_INST = 5
+instance_number = "10"
 
-# Read all .dat files and populate instances
-instances = read_all_dat_files(directory)
-instance = instances[NUM_INST-1] # extract the corresp. instance
+file_path = os.path.join('Instances', f'inst{instance_number}.dat')
+instance = read_dat_file_2(file_path)
+
 m = instance['m']
 n = instance['n']
 l = instance['l']
 s = instance['s']
 D = instance['D']
+lb = instance['lb']
+ub = instance['ub']
 
 # DECLARING CONSTANTS
 MAX_ITEMS = (n // m) + 3
 Couriers = range(1, m+1)
 Items = range(1, n+1)
-print(f"Instance {NUM_INST} chosen \nnum Couriers: {m}, num items: {n}")
+print(f"Instance {instance_number} chosen \nnum Couriers: {m}, num items: {n}")
 
 # DECLARING VARIABLES USING SMT SORTS
 Z = IntSort()
 B = BoolSort()
-b_path = Array("b_path", Z, ArraySort(Z, B)) # create a boolean matrix
-load = Array('load', Z, Z)
+
+# - to handle symbolic expressions errors
+load = Array('load', Z, Z) 
 size = Array('size', Z, Z)
-path = Array('path', Z, ArraySort(Z, Z)) # create an integer matrix
-path_length = Array('path', Z, Z)
-total_distance = Array('total_distance', Z, Z)
 D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and returns an integer (distance)
+
+# - variables to be optimized
+b_path = Array("b_path", Z, ArraySort(Z, B)) # create a boolean matrix
+path = Array('path', Z, ArraySort(Z, Z)) # create an integer matrix
+path_length = Array('path', Z, Z) # to store the length of the path
+total_distance = Array('total_distance', Z, Z) # to store the total distance traveled by each courier
+
+# OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
+max_dist = Int('max_dist')
 
 # INITIALIZE the OPTIMIZER
 optimizer = Solver()
+optimizer.set("random_seed", 42)
+optimizer.set("timeout", 60000) # set timeout to 60 seconds
 
 # HELPER FUNCTIONS
 # - all_different
 def distinct_except(values, forbidden_values):
     non_forbidden_values = [v for v in values if v not in forbidden_values]
     return Distinct(non_forbidden_values) # enforcing uniqueness
+
+# - lexicographic order
+def lexleq(a1, a2):
+    if not a1:  # If a1 is an empty list, it precedes a2
+        return True
+    if not a2:  # If a2 is an empty list, a1 does not precede a2
+        return False
+    # Compare the first elements and recursively check the rest
+    return Or(And(Not(a1[0]), a2[0]), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
+    #return Or(And(a1[0], Not(a2[0])), And(a1[0] == a2[0], lexleq(a1[1:], a2[1:])))
 
 # CONSTRAINTS
 # Mappings (due to 0-indexing): Z3 Arrays <-> Python arrays
@@ -69,21 +88,21 @@ for c in range(m):
 # Path should range between 0 and n+1        
 for c in Couriers:
     for j in range(1, MAX_ITEMS+1):
-        optimizer.add(And(path[c][j] >= 0, path[c][j] <= n+1))
+        optimizer.add(And(path[c][j] >= IntVal(0), path[c][j] <= IntVal(n+1)))
 
 # Boundaries of path_length's values
 for c in Couriers:
-    optimizer.add(And(path_length[c] >= 3, path_length[c] <= MAX_ITEMS))
+    optimizer.add(And(path_length[c] >= IntVal(3), path_length[c] <= IntVal(MAX_ITEMS)))
 
 # Define initial node and final node
 for c in Couriers:
-    optimizer.add(path[c][1] == n + 1) # Initial node
-    optimizer.add(path[c][path_length[c]] == n + 1)  # Ending node
+    optimizer.add(path[c][1] == IntVal(n + 1)) # Initial node
+    optimizer.add(path[c][path_length[c]] == IntVal(n + 1))  # Ending node
 
 # Set unvisited Items to zero
 for c in Couriers:
     for i in range(1, MAX_ITEMS + 1):
-        optimizer.add(Implies(i > path_length[c], path[c][i] == 0))
+        optimizer.add(Implies(i > path_length[c], path[c][i] == IntVal(0)))
 
 # No courier exceeds its load capacity
 for c in Couriers:    
@@ -118,76 +137,87 @@ for c in Couriers:
 # Distance computation
 for c in Couriers:
     # Sum for distances between two non-zero Items
-    dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j]-1, path[c][j+1]-1), 0)
+    dist_expr = Sum([If(And(path[c][j] != 0, path[c][j+1] != 0), D_func(path[c][j] - IntVal(1), path[c][j+1] - IntVal(1)), 0)
                     for j in range(1, MAX_ITEMS)])
     
     # Sum for distances when there's a zero node between two non-zero items
     # FIXME: allowing zeros in the paths, we have to do this additional computation
-    dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1]-1, path[c][j+1]-1), 0)
+    dist_expr += Sum([If(And(path[c][j] == 0, path[c][j-1] != 0, path[c][j+1] != 0), D_func(path[c][j-1] - IntVal(1), path[c][j+1] - IntVal(1)), 0)
                       for j in range(1, MAX_ITEMS)])
     
     optimizer.add(total_distance[c] == dist_expr)
 
-# OPTIMIZATION OBJECTIVE - Minimize the maximum distance traveled by any courier
-max_dist = Int('max_dist')
-optimizer.add([max_dist >= total_distance[c] for c in Couriers])
+# Symmetry breaking: two couriers with the same load size
+for c1 in Couriers:
+    for c2 in Couriers:
+        if c1 < c2:  # Ensure c1 < c2 to avoid redundant comparisons
+            # Add symmetry-breaking constraint if load sizes are equal
+            sym_break_constraint = If(load[c1] == load[c2], lexleq([b_path[c1][j] for j in Items], [b_path[c2][j] for j in Items]), True)
+            optimizer.add(sym_break_constraint)
 
+# Total distance constraint
+for c in Couriers:
+    optimizer.add(total_distance[c] <= max_dist)
+
+# BINARY SEARCH
+# Initialize binary search bounds
+low, high = lb, ub
+best_solution = None
 TIME_LIMIT = 300
-current_best_max_dist = None
 
-while True:
-    # Check elapsed time
+# Perform binary search
+while low <= high:
     elapsed_time = time.time() - start_time
     if elapsed_time > TIME_LIMIT:
         print("\nTime limit reached.")
         break
 
-    # Set timeout for each solver call to the remaining time
-    remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)  # in milliseconds
-    # we enforce a strict time limit on each individual call to optimizer.check(),
-    # s.t. the timout is adjusted dynamically based on the remaining time.
-    optimizer.set(timeout=remaining_time)
+    mid = (low + high) // 2
+    print(f"\nTrying max_dist = {mid} (low={low}, high={high})")
 
-    # CHECK SATISFIABILITY
+    remaining_time = int(max(TIME_LIMIT - elapsed_time, 1) * 1000)
+    optimizer.set(timeout=remaining_time)
+    optimizer.push()
+
+    # Add binary search constraint
+    optimizer.add(max_dist <= mid)
+
     if optimizer.check() == sat:
         model = optimizer.model()
-
-        # Evaluate the maximum distance traveled by any courier
         current_max_dist = max(model.eval(total_distance[c]).as_long() for c in Couriers)
 
-        if current_best_max_dist is None or current_max_dist < current_best_max_dist:
-            current_best_max_dist = current_max_dist
-
-            # Print the current best solution
-            print("\nCurrent best solution:")
+        if best_solution is None or current_max_dist < best_solution:
+            best_solution = current_max_dist
             paths = {}
+
+            print("\nFound a valid solution:")
             for c in Couriers:
                 path_length_c = model.eval(path_length[c]).as_long()
-                path_values = []
-                for j in range(1, path_length_c + 1):
-                    evaluated_value = model.evaluate(path[c][j]).as_long()
-                    if evaluated_value != 0:
-                        path_values.append(evaluated_value)
+                path_values = [model.eval(path[c][j]).as_long() for j in range(1, path_length_c + 1) if model.eval(path[c][j]).as_long() != 0]
                 paths[c] = path_values
                 print(f'Courier {c}: {path_values}')
-            print(f"Current best max distance: {current_best_max_dist}")
+            print(f"New best max distance: {best_solution}")
 
-        # Add a constraint to find a better solution in the next iteration
-        optimizer.add(max_dist < current_best_max_dist)
-
+        # Since we found a solution, search for a smaller max_dist
+        high = mid - 1
     else:
-        print("unsat")
-        break
+        print("No solution found for this max_dist.")
+        # If no solution, we need to allow a higher max_dist
+        low = mid + 1
 
-# Record end time
+    optimizer.pop()
+
+# Print final result
 end_time = time.time()
-# Calculate elapsed time
 elapsed_time = end_time - start_time
-print(f"\nElapsed time: {elapsed_time} seconds")
+print("\nElapsed time: {:.2f} seconds".format(elapsed_time))
 
-# Draw the graph with each courier's path
-#try: # 'paths' variable exists only exists if at least a solution is found 
-#    draw_graph(num_items=n, Couriers=Couriers, paths=paths)
-#except NameError:
-    # print("\nNo solution found.")
-#else: print(f"\nMax distance: {current_best_max_dist}")
+if best_solution:
+    try:
+        draw_graph(num_items=n, Couriers=Couriers, paths=paths)
+    except NameError:
+        print("\nNo solution found.")
+    else:
+        print(f"\nFinal max distance: {best_solution}")
+else:
+    print("\nNo feasible solution found within the given constraints.")

@@ -1,95 +1,99 @@
 import os
 from minizinc import Instance, Model, Solver
-import utils
-from datetime import timedelta
 import json
 import time
+from datetime import timedelta
 from math import floor
 
-def convert_to_dat_format(data_tuple):
-    m, n, l, s, D, lb, ub = data_tuple
-    return {
-        'm': m,
-        'n': n,
-        'l': l,
-        's': s,
-        'D': D,
-        'lb': lb,
-        'ub': ub,
+def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT, symm_break, chuffed):
+    file_path = f'res/CP/{str(int(instance_number))}.json'
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    
+    end_time = int(floor(time.time() - start_time))
+
+    json_dict = {
+        "time": TIME_LIMIT if end_time > TIME_LIMIT else end_time,
+        "optimal": (time.time() - start_time) < TIME_LIMIT,
+        "obj": int(dist) if dist is not None else None,
+        "sol": paths
     }
 
-def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT=10):
-    file_path = f'res/CP/{str(int(instance_number))}.json'
-    json_dict = {}
-    json_dict['time'] = int(floor(time.time() - start_time))
-    json_dict['optimal'] = True if (time.time() - start_time < TIME_LIMIT) else False
-    json_dict['obj'] = int(dist) if dist is not None else None
-    json_dict['sol'] = paths
-
-    # Check if the file already exists
+    # Check if the file exists
     if os.path.exists(file_path):
-        # Read the existing JSON data
         with open(file_path, 'r') as infile:
             existing_data = json.load(infile)
     else:
-        # If the file does not exist, start with an empty dictionary
         existing_data = {}
 
-    # Add the new entry to the existing data
-    model_type = 'CP_noSB'  # Assuming model_type to be 'CP', adjust as needed
+    # Update the data
+    model_type = "CP_gecode_noSB"
+    if symm_break:
+        model_type = "CP_gecode_SB"
+    if chuffed:
+        model_type = "CP_chuffed_SB"
+    
     existing_data[model_type] = json_dict
 
-    # Write the updated data back to the file
+    # Write updated data to file
     with open(file_path, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4)
 
 def reorder_path(start, path):
     ordered_path = []
-    current = start  # Start from the start node
+    current = start
 
-    while path[current] != start+1:
-        next_node = path[current]  # Adjust for 0-based indexing
-        print(next_node)
+    while path[current] != start + 1:
+        next_node = path[current]
         ordered_path.append(next_node)
-        current = next_node-1
+        current = next_node - 1
     
     return ordered_path
 
+def CP(instance_number, symm_break=False, chuffed=False):
+    model_def = f"Running CP model on instance {instance_number} with "
 
-def CP(instance_number):
-    # Load the MiniZinc model
-    model = Model()
-    model.add_file("M10.mzn")
+    # Select the appropriate model
+    if chuffed:
+        model_name = "M12.mzn"
+        model_def += "Chuffed as solver and SB constraints"
+    elif symm_break:
+        model_name = "M11.mzn"
+        model_def += "Gecode as solver and SB constraints"
+    else:
+        model_name = "M10.mzn"
+        model_def += "Gecode as solver without SB constraints"
 
-    # IMPORTING INSTANCE
-    try:
-        file_path = os.path.join('Instances', f'inst{instance_number}.dat')
-        inst = utils.read_dat_file_2(file_path)
-        print("Parsed data from file:", inst)
-    except Exception as e:
-        print(f"Error reading the instance file: {e}")
+    print(model_def+":")
+
+    # Load the selected MiniZinc model
+    model = Model(model_name)
+
+    # Define the path to the `.dzn` file
+    data_file = os.path.join("Instances (CP)", f"inst{instance_number}.dzn")
+
+    if not os.path.exists(data_file):
+        print(f"Error: Data file '{data_file}' not found!")
         return None
+
+    # Select the solver
+    solver_name = "chuffed" if chuffed else "gecode"
+    solver = Solver.lookup(solver_name)
     
-    # Convert data to the format MiniZinc expects
-    instt = convert_to_dat_format(inst)
+    # Create a MiniZinc instance
+    instance = Instance(solver, model)
 
-    # Create a MiniZinc solver instance
-    gecode = Solver.lookup("gecode")
+    # Load the `.dzn` file as input data
+    instance.add_file(data_file)
 
-    # Create a MiniZinc instance with the model and data
-    instance = Instance(gecode, model)
-    
-    # Pass the data as arguments to the MiniZinc model
-    for key, value in instt.items():
-        instance[key] = value
-
-    # Set the timeout
-    timeout = timedelta(seconds=10)  # 10 seconds timeout
+    # Set timeout
+    timeout = timedelta(seconds=300)
 
     # Start timing
     start_time = time.time()
 
-    # Solve the model with the timeout
+    # Solve the model
     try:
         result = instance.solve(timeout=timeout)
     except Exception as e:
@@ -98,55 +102,40 @@ def CP(instance_number):
 
     # Output the results
     if result:
-
-        # Check and print contents of result.solution
-        if hasattr(result, 'solution'):
+        if hasattr(result, "solution"):
             solution = result.solution
-            print("Solution attributes:")
-            
-            # Initialize variables for JSON output
+            #print("Solution attributes:")
+
             paths = []
             max_distance = None
 
-            # Print all available attributes with their values
+            '''
+            - Print attributes 
             for attr in dir(solution):
-                if not attr.startswith('__'):
+                if not attr.startswith("__"):
                     try:
                         value = getattr(solution, attr)
                         print(f"{attr}: {value}")
                     except Exception as e:
                         print(f"Could not access {attr}: {e}")
+            '''
 
             try:
-                x = getattr(solution, 'x', None)
-                max_distance = getattr(solution, 'objective', None)
+                x = getattr(solution, "x", None)
+                max_distance = getattr(solution, "objective", None)
 
                 if x is None or max_distance is None:
                     print("One or more expected result variables not found.")
                 else:
-                    print("Paths:")
-                    for i in range(instt['m']):
-                        start_node = instt['n']  # n+1 is represented as 'n' since indexing starts from 0n
-                        path = reorder_path(start_node, x[i])  # Reorder path starting from n+1
-                        paths.append(path)  # Store path for JSON
-                        print(f"Courier {i + 1}: {' -> '.join(map(str, path))}")
-                    print("Maximum distance:", max_distance)
+                    print("Objective value (max dist): {}\n".format(max_distance))
 
             except AttributeError as e:
                 print(f"Error accessing result attributes: {e}")
-            
+
             # Save results to JSON
-            json_fun(instance_number, max_distance, paths, start_time)
+            json_fun(instance_number, max_distance, paths, start_time, TIME_LIMIT=300, symm_break=symm_break, chuffed=chuffed)
 
         else:
             print("Solution attribute not found.")
     else:
         print("No solution found")
-
-def main(instance_number):
-    CP(instance_number)
-
-if __name__ == "__main__":
-    print(os.getcwd())
-    instance_number = "05"  # Example instance number
-    main(instance_number)

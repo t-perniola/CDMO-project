@@ -1,7 +1,8 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11
 
-ADD main.py .
+# Install bash and coreutils
+RUN apt-get update && apt-get install -y bash coreutils
 
 # Set the working directory
 WORKDIR /app
@@ -10,11 +11,10 @@ WORKDIR /app
 COPY . /app
 
 # Install dependencies for all models
-RUN pip install gurobipy z3-solver minizinc
+RUN pip install gurobipy z3-solver minizinc pulp numpy
 
-# Make main.sh executable
+# Make run_model.sh executable
 RUN chmod +x /app/run_model.sh
 
 # Define the command to run when the container starts
-#CMD ["./run_model.sh"]
-ENTRYPOINT ["/app/run_model.sh"]
+ENTRYPOINT ["bash", "/app/run_model.sh"]

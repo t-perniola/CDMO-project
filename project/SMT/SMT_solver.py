@@ -15,7 +15,7 @@ def SMT_model(instance_num, timeout):
     start_time = time.time()
 
     # IMPORTING INSTANCE
-    file_path = os.path.join('project\SMT\Instances', f'inst{instance_num}.dat')
+    file_path = os.path.join('Instances', f'inst{instance_num}.dat')
     instance = utils.read_dat_file(file_path)
     m = instance['m']
     n = instance['n']
@@ -145,4 +145,14 @@ def SMT_model(instance_num, timeout):
     max_dist = Int('max_dist')
     solver.add([max_dist >= total_distance[c] for c in Couriers])
 
-    return solver
+    return solver, max_dist
+
+instance_num = "01"
+timeout = 300000  # 5 minutes
+solver, max_dist = SMT_model(instance_num, timeout)  # Unpack returned values
+if solver.check() == sat:
+    model = solver.model()
+    max_distance_value = model[max_dist]
+    print(f"Retrieved max distance: {max_distance_value}")
+else:
+    print("No solution found.")

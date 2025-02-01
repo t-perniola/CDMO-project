@@ -13,10 +13,10 @@ import os
 start_time = time.time()
 
 # Choose instance
-NUM_INST = "02"
+NUM_INST = "20"
 
 # IMPORTING INSTANCE
-file_path = os.path.join('project\SMT\Instances', f'inst{NUM_INST}.dat')
+file_path = os.path.join('Instances', f'inst{NUM_INST}.dat')
 instance = utils.read_dat_file(file_path)
 m = instance['m']
 n = instance['n']
@@ -43,6 +43,7 @@ D_func = Function('D_func', Z, Z, Z) # takes two integer arguments (indices) and
 
 # INITIALIZE the optimizer
 optimizer = Optimize()
+optimizer.set("timeout", 60000) # set timeout to 60 seconds
 
 # HELPER FUNCTIONS
 # - all_different
@@ -210,3 +211,8 @@ if optimizer.check() == sat:
 
 else:
     print("unsat")
+    # Record end time
+    end_time = time.time()
+    # Calculate elapsed time
+    elapsed_time = end_time - start_time
+    print("\nElapsed time: {:.2f} seconds".format(elapsed_time))

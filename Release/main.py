@@ -9,24 +9,10 @@ import os
 from MIP_PulP import MIP 
 from SMT import SMT
 from CP import CP
-from SAT import SAT
-
-def run_approach(approach, number):
-    match approach:
-        case 'MIP':
-            MIP(number)
-        case 'SMT':
-            SMT(number)
-        case 'CP':
-            CP(number)
-        case 'SAT':
-            SAT(number)
-        case _:
-            print('Invalid parameters')
 
 def run_model(argv):
     approach = ''
-
+ 
     if len(argv) > 1:
         approach = argv[1]
 
@@ -41,19 +27,25 @@ def run_model(argv):
         inst_num = filename.split('.')[0][-2:]
         instance_numbers.append(inst_num)
     
+    # execute the specified instance with the specified approach
     if not run_all_instances and len(argv) > 1:
         match approach:
             case 'MIP':
                 MIP(instance_number)
             case 'SMT':
-                SMT(instance_number)
+                sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
+                bin_search_bool = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower() == 'y'
+                SMT(instance_number, bin_search_bool, sb_bool)
             case 'CP':
-                CP(instance_number)
-            case 'SAT':
-                SAT(instance_number)
+                sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
+                chuffed_bool = input("Use Chuffed as solver? (y/n) [if 'n', Gecode will be used]: ").strip().lower() == 'y'
+                CP(instance_number, sb_bool, chuffed_bool)
+            #case 'SAT':
+            #    SAT(instance_number)
             case _:
                 print('Invalid parameters')
 
+    # execute all the instances for the specified approach
     elif run_all_instances:
         match approach:
             case 'MIP':
@@ -65,17 +57,27 @@ def run_model(argv):
             case 'CP':
                 for n in instance_numbers:
                     CP(n)
-            case 'SAT':
-                for n in instance_numbers:
-                    SAT(n)
+            #case 'SAT':
+            #    for n in instance_numbers:
+            #        SAT(n)
             case _:
                 print('Invalid parameters')
 
-    else:
+    else: # execute all approaches for all instances
         for approach in ['CP', 'SMT', 'MIP']:
             for n in instance_numbers:
                 run_approach(approach, n)
 
+def run_approach(approach, number):
+    match approach:
+        case 'MIP':
+            MIP(number)
+        case 'SMT':
+            SMT(number)
+        case 'CP':
+            CP(number)
+        case _:
+            print('Invalid parameters')
+
 if __name__ == "__main__":
     run_model(sys.argv)
-
