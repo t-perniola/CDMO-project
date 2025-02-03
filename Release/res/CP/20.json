@@ -2,13 +2,13 @@
     "CP_gecode_noSB": {
         "time": 300,
         "optimal": false,
-        "obj": 373,
+        "obj": 1075,
         "sol": []
     },
-    "CP_chuffed_SB": {
+    "CP_gecode_SB": {
         "time": 300,
         "optimal": false,
-        "obj": 549,
+        "obj": 1159,
         "sol": []
     }
 }

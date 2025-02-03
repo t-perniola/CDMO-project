@@ -1,14 +1,14 @@
 {
-    "CP_gecode_noSB": {
-        "time": 300,
-        "optimal": false,
-        "obj": 373,
-        "sol": []
-    },
     "CP_chuffed_SB": {
         "time": 300,
         "optimal": false,
-        "obj": 549,
+        "obj": 286,
+        "sol": []
+    },
+    "CP_gecode_noSB": {
+        "time": 300,
+        "optimal": false,
+        "obj": 286,
         "sol": []
     }
 }

@@ -1,0 +1,20 @@
+{
+    "CP_gecode_SB": {
+        "time": 0,
+        "optimal": true,
+        "obj": 206,
+        "sol": []
+    },
+    "CP_chuffed_SB": {
+        "time": 0,
+        "optimal": true,
+        "obj": 206,
+        "sol": []
+    },
+    "CP_gecode_noSB": {
+        "time": 0,
+        "optimal": true,
+        "obj": 206,
+        "sol": []
+    }
+}

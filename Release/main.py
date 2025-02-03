@@ -6,11 +6,13 @@ main.py if you want to execute all the instances over all the approaches
 
 import sys
 import os
-from MIP_Gurobi import MIP as MIP_Gurobi
-from MIP_PulP import MIP as MIP_PulP
-from SMT import SMT
-from CP import CP
+from models.MIP.MIP_Gurobi import MIP as MIP_Gurobi
+from models.MIP.MIP_PulP import MIP as MIP_PulP
+from models.SMT.SMT_model import SMT
+from models.CP.CP_model import CP
+from models.SAT.SAT_model import SAT
 
+# Main function
 def run_model(argv):
     approach = ''
  
@@ -24,7 +26,7 @@ def run_model(argv):
         instance_number = argv[2]
 
     instance_numbers = []
-    for filename in os.listdir('Instances'):
+    for filename in os.listdir('instances\Instances (.dat)'):
         inst_num = filename.split('.')[0][-2:]
         instance_numbers.append(inst_num)
     
@@ -39,11 +41,13 @@ def run_model(argv):
                 bin_search_bool = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower() == 'y'
                 SMT(instance_number, bin_search_bool, sb_bool)
             case 'CP':
-                sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
                 chuffed_bool = input("Use Chuffed as solver? (y/n) [if 'n', Gecode will be used]: ").strip().lower() == 'y'
+                sb_bool = chuffed_bool or input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
                 CP(instance_number, sb_bool, chuffed_bool)
-            #case 'SAT':
-            #    SAT(instance_number)
+            case 'SAT':
+                sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
+                search_type = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower == 'y'
+                SAT(instance_number, sb_bool, search_method="binary" if search_type else "branch_and_bound")
             case _:
                 print('Invalid parameters')
 
@@ -59,9 +63,9 @@ def run_model(argv):
             case 'CP':
                 for n in instance_numbers:
                     CP(n)
-            #case 'SAT':
-            #    for n in instance_numbers:
-            #        SAT(n)
+            case 'SAT':
+                for n in instance_numbers:
+                    SAT(n)
             case _:
                 print('Invalid parameters')
 
@@ -78,8 +82,8 @@ def run_approach(approach, number):
             SMT(number)
         case 'CP':
             CP(number)
-        #case 'SAT':
-        #    SAT(number)
+        case 'SAT':
+            SAT(number)
         case _:
             print('Invalid parameters')
 

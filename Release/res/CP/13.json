@@ -4,5 +4,11 @@
         "optimal": false,
         "obj": 508,
         "sol": []
+    },
+    "CP_chuffed_SB": {
+        "time": 300,
+        "optimal": false,
+        "obj": 966,
+        "sol": []
     }
 }

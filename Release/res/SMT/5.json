@@ -1,5 +1,5 @@
 {
-    "SAT_noSB_BB": {
+    "SMT_SB_BB": {
         "time": 0,
         "optimal": true,
         "obj": 206,
@@ -13,7 +13,7 @@
             ]
         ]
     },
-    "SAT_SB_BB": {
+    "SMT_noSB_BB": {
         "time": 0,
         "optimal": true,
         "obj": 206,
