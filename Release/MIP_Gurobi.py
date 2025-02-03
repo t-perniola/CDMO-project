@@ -191,6 +191,12 @@ def MIP(instance_number):
 
     order_solution(sol,m,l,parsed_data['l'])
 
+    if model.SolCount > 0:
+        print(f"Final Objective Value: {int(model.ObjVal)}")
+    else:
+        print("No solution found within the time limit.")
+
+
     json_dict = {}
     json_dict['MIP'] = {}
     json_dict['MIP']['time'] = int(floor(model.Runtime + preprocessing_time.seconds)) if model.SolCount > 0 else time_limit

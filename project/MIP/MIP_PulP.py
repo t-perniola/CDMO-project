@@ -7,7 +7,7 @@ import json
 import os
 import copy
 
-def find_path(adj_matrix, courier, n):
+def find_path(adj_matrix, n):
     res = []
     source = n
     while True:
@@ -127,7 +127,7 @@ def MIP_thread(parsed_data, queue):
         model += load[c] <= l[c]
 
 
-    model.solve(lp.PULP_CBC_CMD())
+    model.solve(lp.PULP_CBC_CMD(msg=False))
     queue.put((lp.value(model.objective), lp.LpStatus[model.status], paths))  # Store result
     
 def MIP(instance_number):
@@ -152,7 +152,7 @@ def MIP(instance_number):
 
     if thread_solution is not None:
         objective, status, paths = thread_solution
-        print(f"Objective value = {objective}")
+        print(f"Objective value (max dist) = {objective}")
 
         if str(objective).split('.')[-1] != '0':
             status = "Undefined"
@@ -165,7 +165,7 @@ def MIP(instance_number):
                     for j in range(n+1):
                         matrix_values[i][j] = paths[c,i,j].varValue
 
-                sol.append(find_path(matrix_values,c,n))
+                sol.append(find_path(matrix_values, n))
 
             order_solution(sol,m,l,parsed_data['l'])
 

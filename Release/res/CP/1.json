@@ -14,17 +14,9 @@
         ]
     },
     "CP_gecode_noSB": {
-        "time": 301,
+        "time": 300,
         "optimal": false,
         "obj": 15,
-        "sol": [
-            [
-                7,
-                1,
-                2,
-                5
-            ],
-            []
-        ]
+        "sol": []
     }
 }

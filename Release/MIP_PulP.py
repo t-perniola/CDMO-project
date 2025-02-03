@@ -1,12 +1,13 @@
 import pulp as lp
 import numpy as np
+import multiprocessing
 from datetime import datetime
 import utils
 import json
 import os
 import copy
 
-def find_path(adj_matrix, courier, n):
+def find_path(adj_matrix, n):
     res = []
     source = n
     while True:
@@ -37,27 +38,29 @@ def order_solution(sol, m, fake_l, real_l):
                 unordered_idxs.remove(idx1)
                 break
 
-def MIP(instance_number):
-    starting_time = datetime.now()
-    time_limit = 5*60
+def solve_with_timeout(parsed_data, time_limit):
+    queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=MIP_thread, args=(parsed_data, queue))
+    process.start()
+    process.join(timeout=time_limit)  # Wait for at most `time_limit` seconds
 
+    if process.is_alive():
+        print("Terminating process due to timeout")
+        process.terminate() 
+        process.join()
+
+    return queue.get() if not queue.empty() else None 
+
+def MIP_thread(parsed_data, queue):
     model = lp.LpProblem("MultipleCouriersProblem", lp.LpMinimize)
 
-    file_path = os.path.join('Instances', str(f'inst{instance_number}.dat'))
-    parsed_data = utils.read_dat_file(file_path)
-
-    m = parsed_data['m']
-    n = parsed_data['n']
-    s = parsed_data['s']
-    l = sorted(parsed_data['l'], reverse=True)
-    D = parsed_data['D']
+    m, n, s, l, D = parsed_data
 
     maxD = np.max(D)
     minD = np.min(D)
     minL = np.min(s)
     heuristic_number_of_nodes_per_courier = np.ceil(n/m) +3
 
-    print(f"Running MIP PulP model on instance {instance_number}:")
 
     max_total_dist = lp.LpVariable("MaxTotalDist", cat='Integer')
 
@@ -124,39 +127,58 @@ def MIP(instance_number):
     for c in range(m):
         model += load[c] <= l[c]
 
-    preprocessing_time = datetime.now() - starting_time
-    safe_bound = 5
 
-    effective_time_limit = time_limit - preprocessing_time.seconds - safe_bound
-    model.solve(lp.PULP_CBC_CMD(timeLimit=effective_time_limit, msg=False, warmStart=True))
-
-    print(f"Objective value (max dist) = {lp.value(model.objective)}")
-    end_time = datetime.now() - starting_time
-
-    sol = []
-    status = lp.LpStatus[model.status]
-
-    if str(lp.value(model.objective))[-1] != '0':
-        status = "Undefined"
+    model.solve(lp.PULP_CBC_CMD(msg=False))
+    queue.put((lp.value(model.objective), lp.LpStatus[model.status], paths))  # Store result
     
-    if status == "Optimal" or status == "Feasible":
-        for c in range(m):
-            matrix_values = [[0 for _ in range(n+1)] for _ in range(n+1)]
+def MIP(instance_number):
+    file_path = os.path.join('Instances', str(f'inst{instance_number}.dat'))
+    parsed_data = utils.read_dat_file(file_path)
 
-            for i in range(n+1):
-                for j in range(n+1):
-                    matrix_values[i][j] = paths[c,i,j].varValue
+    print(f"Running MIP model with PulP as solver on instance {instance_number}")
 
-            sol.append(find_path(matrix_values,c,n))
+    m = parsed_data['m']
+    n = parsed_data['n']
+    s = parsed_data['s']
+    l = sorted(parsed_data['l'], reverse=True)
+    D = parsed_data['D']
 
-        order_solution(sol,m,l,parsed_data['l'])
+    starting_time = datetime.now()
+    time_limit = 5*60
+    safe_bound = 5
+    
+    thread_solution = solve_with_timeout((m, n, s, l, D), time_limit-safe_bound)
+    
+    end_time = datetime.now() - starting_time
+    status = "Undefined"
+    sol = []
+
+    if thread_solution is not None:
+        objective, status, paths = thread_solution
+        print(f"Objective value (max dist) = {objective}")
+
+        if str(objective).split('.')[-1] != '0':
+            status = "Undefined"
         
+        if status == "Optimal" or status == "Feasible":
+            for c in range(m):
+                matrix_values = [[0 for _ in range(n+1)] for _ in range(n+1)]
+
+                for i in range(n+1):
+                    for j in range(n+1):
+                        matrix_values[i][j] = paths[c,i,j].varValue
+
+                sol.append(find_path(matrix_values, n))
+
+            order_solution(sol,m,l,parsed_data['l'])
+
     json_dict = {}
     json_dict['MIP'] = {}
     json_dict['MIP']['time'] = end_time.seconds if (end_time.seconds+safe_bound<time_limit) else time_limit
     json_dict['MIP']['optimal'] = True if (end_time.seconds+safe_bound<time_limit) else False
-    json_dict['MIP']['obj'] = int(lp.value(model.objective)) if (status == "Optimal" or status == "Feasible") else None
+    json_dict['MIP']['obj'] = int(objective) if (status == "Optimal" or status == "Feasible") else None
     json_dict['MIP']['sol'] = sol
 
     with open(f'res/MIP/{str(int(instance_number))}.json', 'w') as outfile:
         json.dump(json_dict, outfile)
+
