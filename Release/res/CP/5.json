@@ -12,7 +12,7 @@
         "sol": []
     },
     "CP_gecode_noSB": {
-        "time": 0,
+        "time": 1,
         "optimal": true,
         "obj": 206,
         "sol": []

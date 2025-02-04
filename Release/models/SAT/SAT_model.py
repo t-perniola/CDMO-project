@@ -14,7 +14,7 @@ def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, se
     
     json_dict = {
         "time": int(floor(time_taken)),
-        "optimal": True if time_taken < TIME_LIMIT else TIME_LIMIT,
+        "optimal": True if time_taken < TIME_LIMIT else False,
         "obj": obj,
         "sol": paths
     }
