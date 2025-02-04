@@ -4,5 +4,11 @@
         "optimal": false,
         "obj": 1103,
         "sol": []
+    },
+    "CP_gecode_SB": {
+        "time": 300,
+        "optimal": false,
+        "obj": 1204,
+        "sol": []
     }
 }

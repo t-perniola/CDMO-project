@@ -36,7 +36,7 @@ def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, se
         model_type = "SAT_noSB"
 
     if search_strategy == "binary":
-        model_type += f"_BS"
+        model_type += "_BS"
     else:
         model_type += "_BB"
     
@@ -217,12 +217,16 @@ def solve_problem(m, n, l, s, D, lb, ub, time_limit, search_method="binary", sym
 # Main function
 def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     mp.set_start_method("spawn")
-    TIME_LIMIT = 300000
+    TIME_LIMIT = 300000  # 5 minutes
 
-    print(f"\nRunning SAT model on instance {instance_num} with symmetry breaking and {search_method}:")
-
-    file_path = os.path.join('instances\Instances (.dat)', f'inst{instance_num}.dat')
-    instance = read_dat_file(file_path)
+    # IMPORTING INSTANCE
+    try:
+        file_path = os.path.join('instances','dat_instances', f'inst{instance_num}.dat')
+        instance = read_dat_file(file_path)
+    except Exception as e:
+        print(f"Error reading the instance file: {e}")
+        return None
+    
     m = instance["m"]
     n = instance["n"]
     l = instance["l"]
@@ -236,13 +240,20 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
         search_method = search_method,
         symm_break = sb_bool
     )
+
+    print("\nRun summary:")
+    print(f"- Approach: SAT")
+    print(f"- Instance: {instance_num}")
+    print(f"- Solver: {'Binary Search' if search_method == 'binary' else 'Branch and Bound'}")
+    print(f"- Symmetry breaking: {'Yes' if sb_bool else 'No'}")
+
     if solution:
         depot = n
         solution = refine_solution(time_taken, obj_value, solution, search_method, depot, TIME_LIMIT)
-        print(f"Objective value (max dist): {solution[search_method]['obj']}")
+        print(f"- Objective value (max dist): {solution[search_method]['obj']}")
 
         # Output the results to a JSON file
         json_fun(instance_num, solution[search_method]['obj'], solution[search_method]['sol'], time_taken, TIME_LIMIT, sb_bool, search_method)
     else:
-        print("Objective value (max dist): No feasible solution found (UNSAT).")
+        print("- Objective value (max dist): No feasible solution found (UNSAT).")
         json_fun(instance_num, None, None, time_taken, TIME_LIMIT, sb_bool, search_method)

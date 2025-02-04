@@ -26,7 +26,9 @@ def run_model(argv):
         instance_number = argv[2]
 
     instance_numbers = []
-    for filename in os.listdir('instances\Instances (.dat)'):
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get absolute path of main.py
+    DATA_PATH = os.path.join(BASE_DIR, "instances", "dat_instances")  # Safe path
+    for filename in os.listdir(DATA_PATH):
         inst_num = filename.split('.')[0][-2:]
         instance_numbers.append(inst_num)
     

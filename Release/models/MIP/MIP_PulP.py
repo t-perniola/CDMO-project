@@ -45,7 +45,7 @@ def solve_with_timeout(parsed_data, time_limit):
     process.join(timeout=time_limit)  # Wait for at most `time_limit` seconds
 
     if process.is_alive():
-        print("Terminating process due to timeout")
+        #print("Terminating process due to timeout")
         process.terminate() 
         process.join()
 
@@ -132,10 +132,8 @@ def MIP_thread(parsed_data, queue):
     queue.put((lp.value(model.objective), lp.LpStatus[model.status], paths))  # Store result
     
 def MIP(instance_number):
-    file_path = os.path.join('instances\Instances (.dat)', str(f'inst{instance_number}.dat'))
+    file_path = os.path.join('instances','dat_instances', str(f'inst{instance_number}.dat'))
     parsed_data = read_dat_file(file_path)
-
-    print(f"\nRunning MIP model with PulP as solver on instance {instance_number}")
 
     m = parsed_data['m']
     n = parsed_data['n']
@@ -153,9 +151,15 @@ def MIP(instance_number):
     status = "Undefined"
     sol = []
 
+    print("\nRun summary:")
+    print(f"- Approach: MIP")
+    print(f"- Instance: {instance_number}")
+    print(f"- Solver: PuLp")
+    print(f"- Symmetry breaking: Yes")
+
     if thread_solution is not None:
         objective, status, paths = thread_solution
-        print(f"Objective value (max dist) = {objective}")
+        print(f"- Objective value (max dist) = {objective}")
 
         if str(objective).split('.')[-1] != '0':
             status = "Undefined"
@@ -171,6 +175,8 @@ def MIP(instance_number):
                 sol.append(find_path(matrix_values, n))
 
             order_solution(sol,m,l,parsed_data['l'])
+    else:
+        print("- Objective value (max dist): No feasible solution found (UNSAT).")
 
     json_dict = {}
     json_dict['MIP'] = {}

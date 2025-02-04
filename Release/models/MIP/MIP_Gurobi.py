@@ -39,14 +39,13 @@ def order_solution(sol, m, fake_l, real_l):
                 unordered_idxs.remove(idx1)
                 break
 
-
 def MIP(instance_number):
     starting_time = datetime.now()
     time_limit = 5*60
 
     # Create the model
     model = gp.Model()
-    file_path = os.path.join('instances\Instances (.dat)', str(f'inst{instance_number}.dat'))
+    file_path = os.path.join('instances','dat_instances', str(f'inst{instance_number}.dat'))
     parsed_data = read_dat_file(file_path)
 
     m = parsed_data['m']
@@ -181,8 +180,11 @@ def MIP(instance_number):
     # Reduce verbosity
     model.Params.OutputFlag = 0
 
+    try:
     # Optimize the model
-    model.optimize(update_upper_bound)
+        model.optimize(update_upper_bound)
+    except gp.GurobiError as e:
+        print("The current model is too large, it needs an Academic License! Exiting...")
 
     sol = []
     if model.SolCount > 0:
@@ -191,11 +193,16 @@ def MIP(instance_number):
 
     order_solution(sol,m,l,parsed_data['l'])
 
-    if model.SolCount > 0:
-        print(f"Objective value (max dist): {int(model.ObjVal)}")
-    else:
-        print("No solution found within the time limit.")
+    print("\nRun summary:")
+    print(f"- Approach: MIP")
+    print(f"- Instance: {instance_number}")
+    print(f"- Solver: Gurobi")
+    print(f"- Symmetry breaking: Yes")
 
+    if model.SolCount > 0:
+        print(f"- Objective value (max dist): {int(model.ObjVal)}")
+    else:
+        print("- Objective value (max dist): No feasible solution found (UNSAT).")
 
     json_dict = {}
     json_dict['MIP'] = {}

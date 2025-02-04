@@ -52,26 +52,21 @@ def reorder_path(start, path):
     return ordered_path
 
 def CP(instance_number, symm_break=True, chuffed=False):
-    model_def = f"\nRunning CP model on instance {instance_number} with "
 
     # Select the appropriate model
+    models_file_path = model_file_path = os.path.join("models", "CP")
     if chuffed:
-        model_name = "models\CP\M12.mzn"
-        model_def += "Chuffed as solver and SB constraints"
+        model_file_path = os.path.join(models_file_path, "M12.mzn")
     elif symm_break:
-        model_name = "models\CP\M11.mzn"
-        model_def += "Gecode as solver and SB constraints"
+        model_file_path = os.path.join(models_file_path, "M11.mzn")
     else:
-        model_name = "models\CP\M10.mzn"
-        model_def += "Gecode as solver without SB constraints"
-
-    print(model_def+":")
+        model_file_path = os.path.join(models_file_path, "M10.mzn")
 
     # Load the selected MiniZinc model
-    model = Model(model_name)
+    model = Model(model_file_path)
 
     # Define the path to the `.dzn` file
-    data_file = os.path.join("instances\Instances (.dzn)", f"inst{instance_number}.dzn")
+    data_file = os.path.join("instances", "dzn_instances", f"inst{instance_number}.dzn")
 
     if not os.path.exists(data_file):
         print(f"Error: Data file '{data_file}' not found!")
@@ -113,10 +108,16 @@ def CP(instance_number, symm_break=True, chuffed=False):
                 x = getattr(solution, "x", None)
                 max_distance = getattr(solution, "objective", None)
 
+                print("\nRun summary:")
+                print(f"- Approach: CP")
+                print(f"- Instance: {instance_number}")
+                print(f"- Solver: {'Chuffed' if chuffed else 'Gecode'}")
+                print(f"- Symmetry breaking: {'Yes' if chuffed or symm_break else 'No'}")
+
                 if x is None or max_distance is None:
-                    print("One or more expected result variables not found.")
+                    print("- Objective value (max dist): No feasible solution found (UNSAT).")
                 else:
-                    print("Objective value (max dist): {}\n".format(max_distance))
+                    print("- Objective value (max dist): {}\n".format(max_distance))
 
             except AttributeError as e:
                 print(f"Error accessing result attributes: {e}")

@@ -13,7 +13,7 @@ def init_solver(instance_number, sb_bool):
     
     # IMPORTING INSTANCE
     try:
-        file_path = os.path.join('instances\Instances (.dat)', f'inst{instance_number}.dat')
+        file_path = os.path.join('instances', 'dat_instances', f'inst{instance_number}.dat')
         instance = read_dat_file(file_path)
     except Exception as e:
         print(f"Error reading the instance file: {e}")
@@ -31,7 +31,6 @@ def init_solver(instance_number, sb_bool):
     MAX_ITEMS = (n // m) + 3
     Couriers = range(1, m+1)
     Items = range(1, n+1)
-    #print(f"Instance {instance_number} chosen \nnum Couriers: {m}, num items: {n}")
 
     # DECLARING VARIABLES USING SMT SORTS
     Z = IntSort()
@@ -247,9 +246,8 @@ def binary_search(optimizer, params):
 
     return best_solution, best_paths
 
-
+# Saves results into a JSON file
 def save_results(instance_number, model_type, best_solution, paths, start_time):
-    """ Saves results into a JSON file. """
     file_path = f'res/SMT/{str(int(instance_number))}.json'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -275,8 +273,6 @@ def save_results(instance_number, model_type, best_solution, paths, start_time):
 
 def SMT(instance_number, bin_search_bool=True, sb_bool=True):
 
-    print(f"\nRunning SMT model on instance {instance_number} {'with symmetry breaking' if sb_bool else 'without SB'} and {'binary search' if bin_search_bool else 'branch and bound search'}:")
-
     optimizer, params = init_solver(instance_number, sb_bool)
     if optimizer is None:
         return
@@ -288,11 +284,17 @@ def SMT(instance_number, bin_search_bool=True, sb_bool=True):
     else:
         best_solution, paths = branch_and_bound(optimizer, params)
 
+    print("\nRun summary:")
+    print(f"- Approach: SMT")
+    print(f"- Symmetry breaking: {'Yes' if sb_bool else 'No'}")
+    print(f"- Search type: {'Binary' if bin_search_bool else 'Branch and Bound'}")
+    print(f"- Instance: {instance_number}")
+
     if best_solution is None:
-        print("Objective value (max dist): No feasible solution found (UNSAT).")
+        print("- Objective value (max dist): No feasible solution found (UNSAT).")
         return
     else:
-        print(f"Objective value (max dist): {best_solution}")
+        print(f"- Objective value (max dist): {best_solution}")
 
     save_results(instance_number, model_type, best_solution, paths, params['start_time'])
 
