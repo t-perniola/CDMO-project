@@ -39,6 +39,8 @@ def read_dat_file(file_path):
     lb = heuristic_number_of_nodes_per_courier * minD
     ub = heuristic_number_of_nodes_per_courier * maxD
 
+    lb = 1 if lb == 0 else lb
+
     return {
         'm': m,
         'n': n,

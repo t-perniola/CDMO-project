@@ -20,7 +20,7 @@
         ]
     },
     "SAT_noSB_BB": {
-        "time": 2,
+        "time": 0,
         "optimal": true,
         "obj": 12,
         "sol": [
