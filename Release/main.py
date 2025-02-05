@@ -48,7 +48,7 @@ def run_model(argv):
                 CP(instance_number, sb_bool, chuffed_bool)
             case 'SAT':
                 sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
-                search_type = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower == 'y'
+                search_type = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower() == 'y'
                 SAT(instance_number, sb_bool, search_method="binary" if search_type else "branch_and_bound")
             case _:
                 print('Invalid parameters')

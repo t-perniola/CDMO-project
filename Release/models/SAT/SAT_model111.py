@@ -6,7 +6,7 @@ import multiprocessing as mp
 from z3 import BoolVal, Bool, Implies, And, Solver, sat, is_true
 from utils.utils import *
 
-TIME_LIMIT = 21000  # 21 secondi in millisecondi
+TIME_LIMIT = 300000 
 
 def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, search_strategy):
     """
@@ -250,7 +250,7 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     )
 
     print("\nRun summary:")
-    print(f"- Approach: SAT")
+    print(f"- Approach: SAT111")
     print(f"- Instance: {instance_num}")
     print(f"- Solver: {'Binary Search' if used_search_method == 'binary' else 'Branch and Bound'}")
     print(f"- Symmetry breaking: {'Yes' if sb_bool else 'No'}")

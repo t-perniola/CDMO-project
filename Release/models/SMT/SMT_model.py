@@ -4,8 +4,10 @@ from utils.utils import read_dat_file
 import json
 import time
 
+# Time limit CONSTANT
 TIME_LIMIT = 300
 
+# Initialize the solver
 def init_solver(instance_number, sb_bool):
 
     # Start the count
@@ -156,7 +158,7 @@ def init_solver(instance_number, sb_bool):
         "D_func": D_func, "lb": lb, "ub": ub, "start_time": start_time, "max_dist": max_dist
     }
 
-# IMPLEMENT BRANCH AND BOUND SEARCH
+# IMPLEMENT BRANCH-AND-BOUND SEARCH
 def branch_and_bound(optimizer, params):
     current_best_max_dist = params['ub']  # Use upper bound as initial best solution
     max_dist = params['max_dist']
@@ -201,41 +203,53 @@ def branch_and_bound(optimizer, params):
 
     return current_best_max_dist, paths
 
-
 # IMPLEMENT BINARY SEARCH
 def binary_search(optimizer, params):
     lb, ub = params['lb'], params['ub']
-    best_max_dist = float("inf")
-    num_couriers = len(params['Couriers'])
-    best_paths = [[] for _ in range(num_couriers)]
-    
+    max_dist = params['max_dist']
+    best_solution = None
+    best_paths = []
+    found_solution = False  # Track if we ever find a valid solution
+
     while lb < ub:
-        mid = lb + (ub - lb) // 2
-        
-        optimizer.push()
-        optimizer.add(params['max_dist'] <= mid)
-        
+        elapsed_time = time.time() - params['start_time']
+        if elapsed_time > TIME_LIMIT:
+            print("\nTime limit reached.")
+            break
+
+        mid = (lb + ub) // 2
+        optimizer.push()  # Save current solver state
+        optimizer.add(max_dist <= mid)
+
+        optimizer.set(timeout=int(max(TIME_LIMIT - elapsed_time, 1) * 1000))
+
         if optimizer.check() == sat:
+            found_solution = True  # Mark that we found at least one solution
             model = optimizer.model()
-            max_dist_value = max(model.eval(params['total_distance'][c]).as_long() for c in params['Couriers'])
-            
-            if max_dist_value < best_max_dist:
-                best_max_dist = max_dist_value
-                for c in params['Couriers']:
-                    path_length_c = model.eval(params['path_length'][c]).as_long()
-                    path_values = [
-                        model.eval(params['path'][c][j]).as_long()
-                        for j in range(path_length_c)
-                    ]
-                    best_paths[c - 1] = path_values
-            
-            ub = mid  # Tighten upper bound
+            # Here, we compute the actual maximum distance from the model
+            current_max_dist = max(model.eval(params['total_distance'][c]).as_long() for c in params['Couriers'])
+            best_solution = current_max_dist  # Use the computed max distance as the objective value
+
+            best_paths = []
+            for c in params['Couriers']:
+                path_length_c = model.eval(params['path_length'][c]).as_long()
+                path_values = [
+                    model.eval(params['path'][c][j]).as_long()
+                    for j in range(2, path_length_c) if model.eval(params['path'][c][j]).as_long() != 0
+                ]
+                best_paths.append(path_values)
+
+            # Now, update ub to mid since we found a solution with this bound.
+            ub = mid
         else:
-            lb = mid + 1  # Increase lower bound
-        
-        optimizer.pop()
-    
-    return best_max_dist, best_paths
+            lb = mid + 1  # Increase the lower bound since no solution exists with mid as the bound.
+        optimizer.pop()  # Restore solver state
+
+    if not found_solution:
+        return None, []
+
+    return best_solution, best_paths
+
 
 # Saves results into a JSON file
 def save_results(instance_number, model_type, best_solution, paths, start_time):
@@ -262,8 +276,10 @@ def save_results(instance_number, model_type, best_solution, paths, start_time):
     with open(file_path, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4, separators=(",", ": "))
 
+# Main function
 def SMT(instance_number, bin_search_bool=True, sb_bool=True):
 
+    # Initialize the solver
     optimizer, params = init_solver(instance_number, sb_bool)
     if optimizer is None:
         return
@@ -286,7 +302,6 @@ def SMT(instance_number, bin_search_bool=True, sb_bool=True):
     else:
         print(f"- Objective value (max dist): {best_solution}\n")
 
+    # Save results to JSON file
     save_results(instance_number, model_type, best_solution, paths, params['start_time'])
-    
-
     

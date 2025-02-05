@@ -1,0 +1,42 @@
+{
+    "SAT_SB_BRANCH_AND_BOUND": {
+        "time": 2,
+        "optimal": true,
+        "obj": 12,
+        "sol": [
+            [
+                5,
+                4,
+                2
+            ],
+            [
+                3,
+                7
+            ],
+            [
+                6,
+                1
+            ]
+        ]
+    },
+    "SAT_SB_BINARY": {
+        "time": 2,
+        "optimal": true,
+        "obj": 12,
+        "sol": [
+            [
+                5,
+                4,
+                2
+            ],
+            [
+                6,
+                3
+            ],
+            [
+                7,
+                1
+            ]
+        ]
+    }
+}
