@@ -234,7 +234,7 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     D = instance["D"]
     lb = instance["lb"]
     ub = instance["ub"]
-    print(search_method)
+
     time_taken, obj_value, solution, search_method = solve_problem(
         m, n, l, s, D, lb, ub, TIME_LIMIT,
         search_method = search_method,
