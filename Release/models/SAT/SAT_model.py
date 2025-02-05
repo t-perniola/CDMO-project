@@ -10,8 +10,6 @@ TIME_LIMIT = 300000  # 5 minutes
 
 def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, search_strategy):
     file_path = f'res/SAT/{str(int(instance_number))}.json'
-    
-    # Create the directory if it doesn't exist
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     
     json_dict = {
@@ -21,7 +19,6 @@ def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, se
         "sol": paths
     }
 
-    # Check if the file exists and load existing data
     if os.path.exists(file_path):
         with open(file_path, 'r') as infile:
             try:
@@ -117,12 +114,14 @@ def model(m, n, l, s, D, lb, ub, time_limit, init_flag, result_queue, search_met
     # Symmetry breaking constraints
     if symm_break:
         for c1 in range(m):
-            for c2 in range(m):
-                if c1 < c2 and l[c1] == l[c2]:
+            for c2 in range(c1+1,m):
+                if l[c1] == l[c2]:
                     solver.add(lexicographical_less(
                         [cw[c1][p] for p in range(n)],
                         [cw[c2][p] for p in range(n)]
                     ))
+                elif l[c1] > l[c2]:
+                    solver.add(lexicographical_less(cl[c2], cl[c1]))   
 
     # Distance computation
     for courier in range(m):
@@ -235,7 +234,7 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     D = instance["D"]
     lb = instance["lb"]
     ub = instance["ub"]
-
+    print(search_method)
     time_taken, obj_value, solution, search_method = solve_problem(
         m, n, l, s, D, lb, ub, TIME_LIMIT,
         search_method = search_method,
