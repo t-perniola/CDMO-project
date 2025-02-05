@@ -5,7 +5,9 @@ import time
 from datetime import timedelta
 from math import floor
 
-def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT, symm_break, chuffed):
+TIME_LIMIT = 300
+
+def json_fun(instance_number, dist, paths, start_time, time_limit, symm_break, chuffed):
     file_path = f'res/CP/{str(int(instance_number))}.json'
     
     # Create the directory if it doesn't exist
@@ -14,8 +16,8 @@ def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT, symm_break, c
     end_time = int(floor(time.time() - start_time))
 
     json_dict = {
-        "time": TIME_LIMIT if end_time > TIME_LIMIT else end_time,
-        "optimal": (time.time() - start_time) < TIME_LIMIT,
+        "time": time_limit if end_time > time_limit else end_time,
+        "optimal": (time.time() - start_time) < time_limit,
         "obj": int(dist) if dist is not None else None,
         "sol": paths
     }
@@ -40,16 +42,44 @@ def json_fun(instance_number, dist, paths, start_time, TIME_LIMIT, symm_break, c
     with open(file_path, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4)
 
-def reorder_path(start, path):
-    ordered_path = []
-    current = start
+def create_paths(x):
+    '''
+    Given the solution in output of the model,
+    extract each courier's raw path
+    '''
+                
+    # Convert MiniZinc array to Python-friendly format
+    raw_paths = []
+    m, n = len(x), len(x[0])  # Get dimensions (couriers x nodes)
 
-    while path[current] != start + 1:
-        next_node = path[current]
-        ordered_path.append(next_node)
-        current = next_node - 1
+    for i in range(m):
+        raw_paths.append([x[i][j] for j in range(n)]) 
+
+    return raw_paths, n
+
+def reconstruct_paths(raw_paths, depot):
+    """
+    Given the raw output (each row is an unordered transition list),
+    reconstructs the correct order of visits for each courier.
+    """
+    corrected_paths = []
     
-    return ordered_path
+    for row in raw_paths:
+        path = []
+        current = depot  # Start from the depot
+
+        while True:
+            next_node = row[current - 1]  # Adjust for 0-based indexing
+            
+            if next_node == depot:  # Stop when returning to depot
+                break
+            
+            path.append(next_node)
+            current = next_node  # Move to next node
+        
+        corrected_paths.append(path)
+
+    return corrected_paths
 
 def CP(instance_number, symm_break=True, chuffed=False):
 
@@ -83,7 +113,7 @@ def CP(instance_number, symm_break=True, chuffed=False):
     instance.add_file(data_file)
 
     # Set timeout
-    timeout = timedelta(seconds=300)
+    timeout = timedelta(seconds=TIME_LIMIT)
 
     # Start timing
     start_time = time.time()
@@ -99,7 +129,6 @@ def CP(instance_number, symm_break=True, chuffed=False):
     if result:
         if hasattr(result, "solution"):
             solution = result.solution
-            #print("Solution attributes:")
 
             paths = []
             max_distance = None
@@ -115,15 +144,20 @@ def CP(instance_number, symm_break=True, chuffed=False):
                 print(f"- Symmetry breaking: {'Yes' if chuffed or symm_break else 'No'}")
 
                 if x is None or max_distance is None:
-                    print("- Objective value (max dist): No feasible solution found (UNSAT).")
+                    print("- Objective value (max dist): No feasible solution found (UNSAT).\n")
                 else:
                     print("- Objective value (max dist): {}\n".format(max_distance))
+
+                # Create raw paths from the solution
+                raw_paths, depot = create_paths(x)
+                # Reconstruct ordered paths
+                paths = reconstruct_paths(raw_paths, depot)
 
             except AttributeError as e:
                 print(f"Error accessing result attributes: {e}")
 
             # Save results to JSON
-            json_fun(instance_number, max_distance, paths, start_time, TIME_LIMIT=300, symm_break=symm_break, chuffed=chuffed)
+            json_fun(instance_number, max_distance, paths, start_time, time_limit=TIME_LIMIT, symm_break=symm_break, chuffed=chuffed)
 
         else:
             print("Solution attribute not found.")

@@ -1,22 +1,19 @@
 {
-    "CP_gecode_SB": {
+    "CP_gecode_noSB": {
         "time": 300,
         "optimal": false,
         "obj": 15,
         "sol": [
             [
-                7,
                 1,
                 2,
-                5
+                5,
+                4
             ],
-            []
+            [
+                3,
+                6
+            ]
         ]
-    },
-    "CP_gecode_noSB": {
-        "time": 300,
-        "optimal": false,
-        "obj": 15,
-        "sol": []
     }
 }

@@ -205,46 +205,37 @@ def branch_and_bound(optimizer, params):
 # IMPLEMENT BINARY SEARCH
 def binary_search(optimizer, params):
     lb, ub = params['lb'], params['ub']
-    max_dist = params['max_dist']
-    best_solution = None
-    best_paths = []
-    found_solution = False  # Track if we ever find a valid solution
-
+    best_max_dist = float("inf")
+    num_couriers = len(params['Couriers'])
+    best_paths = [[] for _ in range(num_couriers)]
+    
     while lb < ub:
-        elapsed_time = time.time() - params['start_time']
-        if elapsed_time > TIME_LIMIT:
-            print("\nTime limit reached.")
-            break
-
-        mid = (lb + ub) // 2
-        optimizer.push()  # Save current solver state
-        optimizer.add(max_dist <= mid)
-
-        optimizer.set(timeout=int(max(TIME_LIMIT - elapsed_time, 1) * 1000))
-
+        mid = lb + (ub - lb) // 2
+        
+        optimizer.push()
+        optimizer.add(params['max_dist'] <= mid)
+        
         if optimizer.check() == sat:
-            found_solution = True  # Mark that we found at least one solution
             model = optimizer.model()
-            best_solution = mid
-            best_paths = []
-
-            for c in params['Couriers']:
-                path_length_c = model.eval(params['path_length'][c]).as_long()
-                path_values = [
-                    model.eval(params['path'][c][j]).as_long()
-                    for j in range(2, path_length_c) if model.eval(params['path'][c][j]).as_long() != 0
-                ]
-                best_paths.append(path_values)
-
-            ub = mid  # Try to find a smaller objective value
+            max_dist_value = max(model.eval(params['total_distance'][c]).as_long() for c in params['Couriers'])
+            
+            if max_dist_value < best_max_dist:
+                best_max_dist = max_dist_value
+                for c in params['Couriers']:
+                    path_length_c = model.eval(params['path_length'][c]).as_long()
+                    path_values = [
+                        model.eval(params['path'][c][j]).as_long()
+                        for j in range(path_length_c)
+                    ]
+                    best_paths[c - 1] = path_values
+            
+            ub = mid  # Tighten upper bound
         else:
-            lb = mid + 1  # Increase the lower bound
-        optimizer.pop()  # Restore solver state
-
-    if not found_solution:
-        return None, []
-
-    return best_solution, best_paths
+            lb = mid + 1  # Increase lower bound
+        
+        optimizer.pop()
+    
+    return best_max_dist, best_paths
 
 # Saves results into a JSON file
 def save_results(instance_number, model_type, best_solution, paths, start_time):
@@ -293,7 +284,7 @@ def SMT(instance_number, bin_search_bool=True, sb_bool=True):
     if best_solution is None:
         print("- Objective value (max dist): No feasible solution found (UNSAT).")
     else:
-        print(f"- Objective value (max dist): {best_solution}")
+        print(f"- Objective value (max dist): {best_solution}\n")
 
     save_results(instance_number, model_type, best_solution, paths, params['start_time'])
     

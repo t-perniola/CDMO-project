@@ -159,7 +159,7 @@ def MIP(instance_number):
 
     if thread_solution is not None:
         objective, status, paths = thread_solution
-        print(f"- Objective value (max dist) = {objective}")
+        print(f"- Objective value (max dist) = {objective}\n")
 
         if str(objective).split('.')[-1] != '0':
             status = "Undefined"
@@ -176,7 +176,7 @@ def MIP(instance_number):
 
             order_solution(sol,m,l,parsed_data['l'])
     else:
-        print("- Objective value (max dist): No feasible solution found (UNSAT).")
+        print("- Objective value (max dist): No feasible solution found (UNSAT).\n")
 
     json_dict = {}
     json_dict['MIP'] = {}

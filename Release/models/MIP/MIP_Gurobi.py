@@ -200,9 +200,9 @@ def MIP(instance_number):
     print(f"- Symmetry breaking: Yes")
 
     if model.SolCount > 0:
-        print(f"- Objective value (max dist): {int(model.ObjVal)}")
+        print(f"- Objective value (max dist): {int(model.ObjVal)}\n")
     else:
-        print("- Objective value (max dist): No feasible solution found (UNSAT).")
+        print("- Objective value (max dist): No feasible solution found (UNSAT).\n")
 
     json_dict = {}
     json_dict['MIP'] = {}

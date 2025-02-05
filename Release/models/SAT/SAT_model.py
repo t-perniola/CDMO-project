@@ -6,6 +6,8 @@ import multiprocessing as mp
 from z3 import BoolVal, Bool, Implies, And, Solver, sat, is_true
 from utils.utils import *
 
+TIME_LIMIT = 300000  # 5 minutes
+
 def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, search_strategy):
     file_path = f'res/SAT/{str(int(instance_number))}.json'
     
@@ -217,7 +219,6 @@ def solve_problem(m, n, l, s, D, lb, ub, time_limit, search_method="binary", sym
 # Main function
 def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     mp.set_start_method("spawn")
-    TIME_LIMIT = 300000  # 5 minutes
 
     # IMPORTING INSTANCE
     try:
@@ -250,10 +251,10 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
     if solution:
         depot = n
         solution = refine_solution(time_taken, obj_value, solution, search_method, depot, TIME_LIMIT)
-        print(f"- Objective value (max dist): {solution[search_method]['obj']}")
+        print(f"- Objective value (max dist): {solution[search_method]['obj']}\n")
 
         # Output the results to a JSON file
         json_fun(instance_num, solution[search_method]['obj'], solution[search_method]['sol'], time_taken, TIME_LIMIT, sb_bool, search_method)
     else:
-        print("- Objective value (max dist): No feasible solution found (UNSAT).")
+        print("- Objective value (max dist): No feasible solution found (UNSAT).\n")
         json_fun(instance_num, None, None, time_taken, TIME_LIMIT, sb_bool, search_method)
