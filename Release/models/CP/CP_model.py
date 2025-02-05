@@ -86,11 +86,11 @@ def CP(instance_number, symm_break=True, chuffed=False):
     # Select the appropriate model
     models_file_path = model_file_path = os.path.join("models", "CP")
     if chuffed:
-        model_file_path = os.path.join(models_file_path, "M12.mzn")
+        model_file_path = os.path.join(models_file_path, "chuffed_SB.mzn")
     elif symm_break:
-        model_file_path = os.path.join(models_file_path, "M11.mzn")
+        model_file_path = os.path.join(models_file_path, "gecode_SB.mzn")
     else:
-        model_file_path = os.path.join(models_file_path, "M10.mzn")
+        model_file_path = os.path.join(models_file_path, "gecode_noSB.mzn")
 
     # Load the selected MiniZinc model
     model = Model(model_file_path)
