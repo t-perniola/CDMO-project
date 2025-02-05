@@ -218,12 +218,12 @@ def solve_problem(m, n, l, s, D, lb, ub, time_limit, search_method="binary", sym
     return result
 
 # Main function
-def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
-    mp.set_start_method("spawn")
-
+def SAT(instance_num, sb_bool=True, search_method="branch_and_bound"):
+    print("iNST ", instance_num)
     # IMPORTING INSTANCE
     try:
         file_path = os.path.join('instances','dat_instances', f'inst{instance_num}.dat')
+        print(file_path)
         instance = read_dat_file(file_path)
     except Exception as e:
         print(f"Error reading the instance file: {e}")
