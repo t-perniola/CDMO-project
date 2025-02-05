@@ -1,8 +1,0 @@
-{
-    "SAT_SB_BRANCH_AND_BOUND": {
-        "time": 21,
-        "optimal": true,
-        "obj": null,
-        "sol": null
-    }
-}

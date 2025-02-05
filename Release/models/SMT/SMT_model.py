@@ -260,7 +260,7 @@ def save_results(instance_number, model_type, best_solution, paths, start_time):
 
     json_dict = {
         'time': TIME_LIMIT if end_time > TIME_LIMIT else end_time,
-        'optimal': True if (time.time() - start_time < TIME_LIMIT) else False,
+        'optimal': True if end_time < TIME_LIMIT else False,
         'obj': int(best_solution) if best_solution is not None else None,
         'sol': paths
     }

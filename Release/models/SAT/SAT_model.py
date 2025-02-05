@@ -6,17 +6,19 @@ import multiprocessing as mp
 from z3 import BoolVal, Bool, Implies, And, Solver, sat, is_true
 from utils.utils import *
 
-TIME_LIMIT = 300000  # 5 minutes
+TIME_LIMIT = 300000 #in ms
 
-def json_fun(instance_number, obj, paths, time_taken, TIME_LIMIT, symm_break, search_strategy):
+def json_fun(instance_number, obj, paths, time_taken, symm_break, search_strategy):
     file_path = f'res/SAT/{str(int(instance_number))}.json'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    time_taken = int(floor(time_taken))
     
     json_dict = {
-        "time": int(floor(time_taken)),
-        "optimal": True if time_taken < TIME_LIMIT else False,
-        "obj": obj,
-        "sol": paths
+        "time": TIME_LIMIT if time_taken > TIME_LIMIT else time_taken,
+        "optimal": True if time_taken < TIME_LIMIT and obj is not None else False,
+        "obj": obj if obj is not None else None,
+        "sol": paths if obj is not None else []
     }
 
     if os.path.exists(file_path):
@@ -253,7 +255,7 @@ def SAT(instance_num, sb_bool, search_method="branch_and_bound"):
         print(f"- Objective value (max dist): {solution[search_method]['obj']}\n")
 
         # Output the results to a JSON file
-        json_fun(instance_num, solution[search_method]['obj'], solution[search_method]['sol'], time_taken, TIME_LIMIT, sb_bool, search_method)
+        json_fun(instance_num, solution[search_method]['obj'], solution[search_method]['sol'], time_taken, sb_bool, search_method)
     else:
         print("- Objective value (max dist): No feasible solution found (UNSAT).\n")
-        json_fun(instance_num, None, None, time_taken, TIME_LIMIT, sb_bool, search_method)
+        json_fun(instance_num, None, None, time_taken, sb_bool, search_method)

@@ -1,8 +1,8 @@
 {
     "SAT_SB_BB": {
         "time": 300,
-        "optimal": true,
+        "optimal": false,
         "obj": null,
-        "sol": null
+        "sol": []
     }
 }

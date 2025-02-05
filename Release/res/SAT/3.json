@@ -1,25 +1,5 @@
 {
-    "SAT_SB_BRANCH_AND_BOUND": {
-        "time": 2,
-        "optimal": true,
-        "obj": 12,
-        "sol": [
-            [
-                5,
-                4,
-                2
-            ],
-            [
-                3,
-                7
-            ],
-            [
-                6,
-                1
-            ]
-        ]
-    },
-    "SAT_SB_BINARY": {
+    "SAT_SB_BS": {
         "time": 2,
         "optimal": true,
         "obj": 12,
@@ -32,6 +12,26 @@
             [
                 6,
                 3
+            ],
+            [
+                7,
+                1
+            ]
+        ]
+    },
+    "SAT_noSB_BB": {
+        "time": 2,
+        "optimal": true,
+        "obj": 12,
+        "sol": [
+            [
+                3,
+                6,
+                5
+            ],
+            [
+                2,
+                4
             ],
             [
                 7,

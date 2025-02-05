@@ -1,9 +1,7 @@
-The instructions should concisely explain how to reproduce the result of a single model on a specific instance, 
-without modifying the source code of your project; for instance, you could provide a script that takes as input 
-arguments the instance number and/or the approach chosen. Moreover, you should also provide a way to run all the 
-models on all the possible instances automatically, aiming to generate all the feasible results with a single 
-operation. The choices for the instructions format and the implementation of the Docker environment are completely 
-up to you.
+TO RUN THE MODELS ON THE INSTANCES
+----------------------------------
+
+0. The current directory should be the one where the "Release" folder is.
 
 1. Build the Docker image using the command "docker build -t <image_name> ."
 
@@ -20,8 +18,7 @@ up to you.
    Using (3.3) you run the program over all the instances using all the approaches;
 
    <approach> takes the values 'CP', 'SAT', 'SMT' or 'MIP'
-   <instance_number> must be in the format '0x' for the instances having number lower than 10, and 'x' for 
-   the instances having number up to 21.
+   <instance_number> must be in the format '0x' for the instances having number lower than 10, and 'x' for the instances having number up to 21.
 
    An example of correct command is: "docker exec -it <container_name> /app/run_model.sh CP 05" or "docker exec -it <container_name> /app/run_model.sh SMT"
 
@@ -29,6 +26,16 @@ By default, the output JSON files are stored within the container. If you want t
 This command will run the model, and the output will be stored in the res/ directory on your local machine.
 
 Note that, since the MIP model is very huge, you may need an active academic licence in order to use the library.
-At this purpose we put in the res/MIP folder the json I generated with my licence, just for check.
+At this purpose we put in the res/MIP folder the json we generated with our licence, just for check.
 
 In order to simply check the output in the volume, you may use Docker desktop.
+
+.......................................................................................................................................................................................
+
+TO CHECK JSON SOL
+-----------------
+
+0. The current directory should be the one where the "Release" folder is.
+
+1. In order to check the solutions into the json files, the folder path where the instances are is the following: "instances/dat_instances"
+   - e.g. on Windows a correct command is "python check_solution.py instances/dat_instances res"
