@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime
-from utils.utils import read_dat_file, clarke_wright_seed, ortools_seed
+#from utils.utils import read_dat_file, clarke_wright_seed, ortools_seed
+import utils.utils as utils
 import json
 import os
 import copy
@@ -95,7 +96,7 @@ def solve_MIP(parsed_data:tuple[int, int, list[int], list[int], list[list[int]]]
     model = Model("MCP")
     
     # Finds the maximum distance between any arc in the seed solution
-    ARCLIM = np.infty
+    ARCLIM = np.inf
     if seed:
         UB_seed = max(
             sum(D[i_prev][i_curr] for i_prev, i_curr in zip([n] + tour, tour + [n]))
@@ -308,11 +309,12 @@ def solve_MIP(parsed_data:tuple[int, int, list[int], list[int], list[list[int]]]
     model.setParam("heuristics/localbranching/freq", 1)	
     model.setParam("heuristics/rins/freq", 5)
 
+    model.setParam("display/verblevel", 0)
+
     model.optimize()
 
     paths = {(c, i, j): int(model.getVal(x[c, i, j])) for (c, i, j) in x}
     return (model.getObjVal(), model.getStatus(), paths)
-
 
 def MIP(instance_number:str):
     """
@@ -321,8 +323,8 @@ def MIP(instance_number:str):
     Args:
         instance_number (int): The index of the instance to solve, named inst{instance_number}.dat
     """
-    file_path = os.path.join('Instances', str(f'inst{instance_number}.dat'))
-    parsed_data = read_dat_file(file_path)
+    file_path = os.path.join('Instances', "dat_instances", str(f'inst{instance_number}.dat'))
+    parsed_data = utils.read_dat_file(file_path)
 
     m = parsed_data['m']
     n = parsed_data['n']
@@ -335,10 +337,10 @@ def MIP(instance_number:str):
     safe_bound = 10
     
     try:
-        seed = ortools_seed(n, m, s, l, D)
+        seed = utils.ortools_seed(n, m, s, l, D)
     except RuntimeError:
         # Always guarantees to find a seed
-        seed = clarke_wright_seed(m, n, s, l, D)
+        seed = utils.clarke_wright_seed(m, n, s, l, D)
     
     presolving_time = datetime.now() - starting_time
 
