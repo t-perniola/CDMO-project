@@ -11,7 +11,6 @@ from utils.utils import compute_bounds
 TIME_LIMIT = 300
 
 def parse_dzn(filename):
-    import re
 
     data = {}
     with open(filename, 'r') as f:
@@ -28,17 +27,37 @@ def parse_dzn(filename):
 
         # Handle MiniZinc matrix [| ... |]
         if val.startswith('[|') and val.endswith('|]'):
-            # Remove the [| and |] wrappers
+            # Rimuovo i wrapper [| e |]
             matrix_raw = val[2:-2].strip()
-            # Split rows by '|'
-            rows = matrix_raw.split('|')
+            print("Raw matrix content:")
+            print(matrix_raw)
+            
+            # Rimuovo tutti i caratteri '|' (usati come separatori di riga)
+            matrix_raw_clean = matrix_raw.replace('|', '\n')
+            
+            # Ora splitto per riga (newline)
+            rows = matrix_raw_clean.strip().split('\n')
             matrix = []
+            
             for row in rows:
                 row = row.strip()
-                if row:
-                    # Split on commas and parse ints
-                    row_vals = [int(x.strip()) for x in row.split(',') if x.strip()]
-                    matrix.append(row_vals)
+                if not row:
+                    continue  # salto righe vuote
+                
+                print("Processing row:")
+                print(row)
+                
+                # Estraggo solo valori numerici separati da virgola
+                row_vals = []
+                for x in row.split(','):
+                    x = x.strip()
+                    if re.match(r'^-?\d+$', x):
+                        row_vals.append(int(x))
+                    else:
+                        pass
+                
+                matrix.append(row_vals)
+
             data[key] = matrix
 
         # Handle array [ ... ]
@@ -47,11 +66,10 @@ def parse_dzn(filename):
             data[key] = arr
 
         else:
-            # Try parsing as int
             try:
                 data[key] = int(val)
             except ValueError:
-                data[key] = val  # fallback to raw string
+                data[key] = val  
 
     return data
 
