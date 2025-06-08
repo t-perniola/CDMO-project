@@ -84,28 +84,6 @@ def compute_bounds(m, n, l, s, D, lb_old, ub_old):
     ub = min(ub_old, ub_cw, ub_ot)
     return lb, ub
 
-def split_lb(s, r, Q):
-    """
-    s  demand  (list of length n)
-    r  radii   (same length, r[i] = 2*D[depot][i])
-    Q  the largest vehicle capacity
-    """
-    items = sorted(zip(r, s), reverse=True)      # long radii first
-    bins  = []                                   # each entry = remaining capacity
-
-    for rad, dem in items:
-        placed = False
-        for b in bins:                           # try to reuse a bin
-            if b['load'] + dem <= Q:
-                b['load'] += dem
-                b['radius'] = max(b['radius'], rad)
-                placed = True
-                break
-        if not placed:
-            bins.append({'load': dem, 'radius': rad})
-
-    return max(b['radius'] for b in bins)
-
 def clarke_wright_seed(m: int, n: int, s: List[int], l: List[int], D: List[List[int]]) -> Tuple[List[List[int]], int]:
     depot = n  # D is (n+1)x(n+1), depot is at index n
     max_cap = max(l)
