@@ -85,6 +85,20 @@ def compute_bounds(m, n, l, s, D, lb_old, ub_old):
     return lb, ub
 
 def clarke_wright_seed(m: int, n: int, s: List[int], l: List[int], D: List[List[int]]) -> Tuple[List[List[int]], int]:
+    """
+    Finds an heuristic starting route configuration. It always find a solution.
+
+    Args:
+        m (int): Number of couriers.
+        n (int): Number of nodes.
+        s (list[int]): Item weights in correspondence of nodes.
+        l (list[int]): Maximum load a courier is able to carry.
+        D (list[list[int]]): Distance matrix.
+
+    Return:
+        list[list[int]]: A list containing one route per courier, where the route is represented by a list of node indices.
+    """
+
     depot = n  # D is (n+1)x(n+1), depot is at index n
     max_cap = max(l)
 
@@ -174,34 +188,50 @@ def clarke_wright_seed(m: int, n: int, s: List[int], l: List[int], D: List[List[
 
     return seed
 
-def ortools_seed(n, m, demand, capacity, dist, depot=None, seconds=8):
+def ortools_seed(n:int, m:int, demand:list[int], capacity:list[int], dist:list[list[int]], depot:int=None, seconds:int=8) -> list[list[int]]:
+    """
+    Finds an heuristic starting route configuration.
+
+    Args:
+        n (int): Number of nodes.
+        m (int): Number of couriers.
+        demand (list[int]): Item weights in correspondence of nodes.
+        capacity (list[int]): Maximum load a courier is able to carry.
+        dist (list[list[int]]): Distance matrix.
+        depot (int): Depot index.
+        seconds (int): Time allocated to seed searching.
+
+    Return:
+        list[list[int]]: A list containing one route per courier, where the route is represented by a list of node indices.
+    """
+
     depot   = depot if depot is not None else n
     manager = pywrapcp.RoutingIndexManager(n + 1, m, depot)
     routing = pywrapcp.RoutingModel(manager)
 
-    # distance matrix --------------------------------------------------------
+    # Distance matrix
     def dcb(from_idx, to_idx):
         i, j = manager.IndexToNode(from_idx), manager.IndexToNode(to_idx)
         return int(dist[i][j])
     transit = routing.RegisterTransitCallback(dcb)
     routing.SetArcCostEvaluatorOfAllVehicles(transit)
 
-    # capacity ---------------------------------------------------------------
+    # Capacity
     def qcb(idx):
         node = manager.IndexToNode(idx)
         return 0 if node == depot else demand[node]
     qidx = routing.RegisterUnaryTransitCallback(qcb)
     routing.AddDimensionWithVehicleCapacity(qidx, 0, capacity, True, "Load")
 
-    # distance *dimension* so we can penalise the longest route --------------
+    # Distance dimension, so we can penalise the longest route
     routing.AddDimension(transit, 0, sum(map(max, dist)), True, "RouteLen")
     route_len = routing.GetDimensionOrDie("RouteLen")
-    # minimise the maximum “RouteLen” over all vehicles
+    
+    # Minimise the maximum “RouteLen” over all vehicles
     route_len.SetGlobalSpanCostCoefficient(1000)
 
-    # allow vehicles to stay idle  -------------------------------------------
-    # (drop Visited≥1 & fixed costs – that helps min-max objectives)
-    # ------------------------------------------------------------------------
+    # Allow vehicles to stay idle 
+    # (drop Visited >= 1 and fixed costs, helping min-max objectives)
     search = pywrapcp.DefaultRoutingSearchParameters()
     search.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
@@ -213,19 +243,19 @@ def ortools_seed(n, m, demand, capacity, dist, depot=None, seconds=8):
     if sol is None:
         raise RuntimeError("OR-Tools could not find a seed.")
 
-    # extract routes ----------------------------------------------------------
+    # Extract routes
     tours = []
     for v in range(m):
         idx, tour = routing.Start(v), []
         while not routing.IsEnd(idx):
             node = manager.IndexToNode(idx)
             if node != depot:
-                tour.append(node + 1)          # 1-based
+                tour.append(node + 1)
             idx = sol.Value(routing.NextVar(idx))
-        if tour:                               # keep only non-empty tours
+        if tour:                               
             tours.append(tour)
 
-    # symmetry-breaking order: load ↓
+    # Respect the symmetry-breaking order
     tours.sort(key=lambda r: -sum(demand[i-1] for i in r))
     return tours
 
