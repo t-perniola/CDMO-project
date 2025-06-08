@@ -1,11 +1,59 @@
 import os
+import re
 from minizinc import Instance, Model, Solver
 import json
 import time
 from datetime import timedelta
 from math import floor
+from utils.utils import compute_bounds
+
 
 TIME_LIMIT = 300
+
+def parse_dzn(filename):
+    import re
+
+    data = {}
+    with open(filename, 'r') as f:
+        content = f.read()
+
+    # Remove comments
+    content = re.sub(r'%.*', '', content)
+
+    # Match all assignments
+    assignments = re.findall(r'(\w+)\s*=\s*(.*?);', content, re.DOTALL)
+
+    for key, val in assignments:
+        val = val.strip()
+
+        # Handle MiniZinc matrix [| ... |]
+        if val.startswith('[|') and val.endswith('|]'):
+            # Remove the [| and |] wrappers
+            matrix_raw = val[2:-2].strip()
+            # Split rows by '|'
+            rows = matrix_raw.split('|')
+            matrix = []
+            for row in rows:
+                row = row.strip()
+                if row:
+                    # Split on commas and parse ints
+                    row_vals = [int(x.strip()) for x in row.split(',') if x.strip()]
+                    matrix.append(row_vals)
+            data[key] = matrix
+
+        # Handle array [ ... ]
+        elif val.startswith('[') and val.endswith(']'):
+            arr = [int(x.strip()) for x in val[1:-1].split(',') if x.strip()]
+            data[key] = arr
+
+        else:
+            # Try parsing as int
+            try:
+                data[key] = int(val)
+            except ValueError:
+                data[key] = val  # fallback to raw string
+
+    return data
 
 def json_fun(instance_number, dist, paths, start_time, time_limit, symm_break, chuffed):
     file_path = f'res/CP/{str(int(instance_number))}.json'
@@ -82,7 +130,6 @@ def reconstruct_paths(raw_paths, depot):
     return corrected_paths
 
 def CP(instance_number, symm_break=True, chuffed=False):
-
     # Select the appropriate model
     models_file_path = model_file_path = os.path.join("models", "CP")
     if chuffed:
@@ -98,6 +145,7 @@ def CP(instance_number, symm_break=True, chuffed=False):
     # Define the path to the `.dzn` file
     data_file = os.path.join("instances", "dzn_instances", f"inst{instance_number}.dzn")
 
+
     if not os.path.exists(data_file):
         print(f"Error: Data file '{data_file}' not found!")
         return None
@@ -111,13 +159,26 @@ def CP(instance_number, symm_break=True, chuffed=False):
 
     # Load the `.dzn` file as input data
     instance.add_file(data_file)
+    data = parse_dzn(data_file)
+    m = data["m"]
+    n = data["n"]
+    l = data["l"]
+    s = data["s"]
+    D = data["D"]
+    
+    lb_old = 0
+    ub_old = float('inf')  # or some large number or None if allowed
+
+    lb, ub = compute_bounds(m, n, l, s, D, lb_old, ub_old)
+
+    instance["lb"] = lb
+    instance["ub"] = ub
 
     # Set timeout
     timeout = timedelta(seconds=TIME_LIMIT)
 
     # Start timing
     start_time = time.time()
-
     # Solve the model
     try:
         result = instance.solve(timeout=timeout)
@@ -163,3 +224,10 @@ def CP(instance_number, symm_break=True, chuffed=False):
             print("Solution attribute not found.")
     else:
         print("No solution found")
+
+
+if __name__ == "__main__":
+    instance_number = '05'         
+    symm_break = False
+    chuffed = False
+    CP(instance_number, symm_break=symm_break, chuffed=chuffed)
