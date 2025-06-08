@@ -1,0 +1,14 @@
+{
+    "SMT_noSB_bin": {
+        "time": 300,
+        "optimal": false,
+        "obj": null,
+        "sol": []
+    },
+    "SMT_noSB_BB": {
+        "time": 300,
+        "optimal": false,
+        "obj": null,
+        "sol": []
+    }
+}

@@ -3,7 +3,10 @@ from z3 import Bool, BoolVal, Xor, Or, And, Not
 import math
 import re
 from collections import defaultdict
+from typing import List, Tuple
+from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
+### READ DAT INSTANCE and COMPUTE HEURISTIC BOUNDS
 def read_dat_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -34,11 +37,14 @@ def read_dat_file(file_path):
                 if D[i][j] < minD:
                     minD = D[i][j]
     
-    heuristic_number_of_nodes_per_courier = n//m +3
+    # Heuristic number of nodes per courier
+    h_num_nodes_per_courier = n//m +3
 
-    lb = heuristic_number_of_nodes_per_courier * minD
-    ub = heuristic_number_of_nodes_per_courier * maxD
+    # Compute naive bounds
+    lb = h_num_nodes_per_courier * minD
+    ub = h_num_nodes_per_courier * maxD
 
+    # Safety assignment
     lb = 1 if lb == 0 else lb
 
     return {
@@ -50,6 +56,215 @@ def read_dat_file(file_path):
         'lb': lb,
         'ub': ub
     }
+
+### FIND MORE ENGINEERED LOWER AND UPPER BOUNDS ###
+def compute_bounds(m, n, l, s, D, lb_old, ub_old):
+    # Define new lower-bound (LB)
+    lb_radial = max(D[n][i] + D[i][n] for i in range(n))
+
+    # Define new upper-bound (UB)
+    try:
+        # Clarke-Wright UB
+        cw_routes = clarke_wright_seed(m, n, s, l, D)
+        cw_dists = compute_path_dist(cw_routes, n, D)
+        ub_cw = sum(cw_dists)
+
+        # Ortools UB
+        ot_routes = ortools_seed(n, m, s, l, D)
+        ot_dists = compute_path_dist(ot_routes, n, D)
+        ub_ot = sum(ot_dists)
+
+    # Safety assignment: if Clarke-Wright doesn't find any route
+    except ValueError:
+        ub_cw = ub_old
+        ub_ot = ub_old
+    
+    # Pick the highest lb and the lowest ub
+    lb = max(lb_old, lb_radial)
+    ub = min(ub_old, ub_cw, ub_ot)
+    return lb, ub
+
+def split_lb(s, r, Q):
+    """
+    s  demand  (list of length n)
+    r  radii   (same length, r[i] = 2*D[depot][i])
+    Q  the largest vehicle capacity
+    """
+    items = sorted(zip(r, s), reverse=True)      # long radii first
+    bins  = []                                   # each entry = remaining capacity
+
+    for rad, dem in items:
+        placed = False
+        for b in bins:                           # try to reuse a bin
+            if b['load'] + dem <= Q:
+                b['load'] += dem
+                b['radius'] = max(b['radius'], rad)
+                placed = True
+                break
+        if not placed:
+            bins.append({'load': dem, 'radius': rad})
+
+    return max(b['radius'] for b in bins)
+
+def clarke_wright_seed(m: int, n: int, s: List[int], l: List[int], D: List[List[int]]) -> Tuple[List[List[int]], int]:
+    depot = n  # D is (n+1)x(n+1), depot is at index n
+    max_cap = max(l)
+
+    # Start with one route per customer
+    routes = [[i] for i in range(n)]
+    route_load = [s[i] for i in range(n)]
+    route_of = list(range(n))
+
+    # Compute Clarke-Wright savings
+    savings = [(D[i][depot] + D[depot][j] - D[i][j], i, j)
+               for i in range(n) for j in range(i+1, n)]
+    savings.sort(reverse=True)
+
+    for _, i, j in savings:
+        ri, rj = route_of[i], route_of[j]
+        if ri == rj:
+            continue
+        if route_load[ri] + route_load[rj] > max_cap:
+            continue
+        if (routes[ri][0] in (i, j) or routes[ri][-1] in (i, j)) and \
+           (routes[rj][0] in (i, j) or routes[rj][-1] in (i, j)):
+            if routes[ri][-1] != i:
+                routes[ri].reverse()
+            if routes[rj][0] != j:
+                routes[rj].reverse()
+            routes[ri].extend(routes[rj])
+            route_load[ri] += route_load[rj]
+            for cust in routes[rj]:
+                route_of[cust] = ri
+            routes[rj] = []
+
+    routes = [r for r in routes if r]
+
+    # Add routes to reach m (splitting longest if needed)
+    while len(routes) < m:
+        idx = max(range(len(routes)), key=lambda r: sum(s[c] for c in routes[r]))
+        cust = routes[idx].pop()
+        routes.append([cust])
+
+    # Merge routes if too many
+    while len(routes) > m:
+        routes.sort(key=lambda r: sum(s[c] for c in r))
+        a = routes.pop(0)
+        b = routes.pop(0)
+        if sum(s[c] for c in a + b) <= max_cap:
+            routes.append(a + b)
+        else:
+            routes.extend([a, b])
+            break
+
+    # Balance capacity
+    changed = True
+    while changed:
+        changed = False
+        for idx, r in enumerate(routes[:m]):
+            over = sum(s[i] for i in r) - l[idx]
+            if over <= 0:
+                continue
+            spare = [l[j] - sum(s[i] for i in routes[j]) for j in range(m)]
+            best_tgt = max((j for j in range(m) if spare[j] >= 1),
+                           key=lambda j: spare[j], default=None)
+            if best_tgt is None:
+                raise ValueError("total capacity < total demand ‒ infeasible instance")
+            cand = max((c for c in r if s[c] <= spare[best_tgt]),
+                       key=lambda c: s[c], default=None)
+            if cand is None:
+                raise ValueError("cannot rebalance routes within capacities")
+            r.remove(cand)
+            routes[best_tgt].append(cand)
+            changed = True
+
+    # Sort routes
+    def route_key(route):
+        load = sum(s[i] for i in route)
+        dist = sum(D[a][b] for a, b in zip([depot] + route, route + [depot]))
+        first = route[0]
+        return (-load, -dist, first)
+
+    routes.sort(key=route_key)
+
+    # Final seed (1-based customer IDs)
+    seed = [[cust + 1 for cust in r] for r in routes[:m]]
+
+    # Sanity checks
+    assert len(seed) == m
+    assert sorted(c for tour in seed for c in tour) == list(range(1, n + 1))
+
+    return seed
+
+def ortools_seed(n, m, demand, capacity, dist, depot=None, seconds=8):
+    depot   = depot if depot is not None else n
+    manager = pywrapcp.RoutingIndexManager(n + 1, m, depot)
+    routing = pywrapcp.RoutingModel(manager)
+
+    # distance matrix --------------------------------------------------------
+    def dcb(from_idx, to_idx):
+        i, j = manager.IndexToNode(from_idx), manager.IndexToNode(to_idx)
+        return int(dist[i][j])
+    transit = routing.RegisterTransitCallback(dcb)
+    routing.SetArcCostEvaluatorOfAllVehicles(transit)
+
+    # capacity ---------------------------------------------------------------
+    def qcb(idx):
+        node = manager.IndexToNode(idx)
+        return 0 if node == depot else demand[node]
+    qidx = routing.RegisterUnaryTransitCallback(qcb)
+    routing.AddDimensionWithVehicleCapacity(qidx, 0, capacity, True, "Load")
+
+    # distance *dimension* so we can penalise the longest route --------------
+    routing.AddDimension(transit, 0, sum(map(max, dist)), True, "RouteLen")
+    route_len = routing.GetDimensionOrDie("RouteLen")
+    # minimise the maximum “RouteLen” over all vehicles
+    route_len.SetGlobalSpanCostCoefficient(1000)
+
+    # allow vehicles to stay idle  -------------------------------------------
+    # (drop Visited≥1 & fixed costs – that helps min-max objectives)
+    # ------------------------------------------------------------------------
+    search = pywrapcp.DefaultRoutingSearchParameters()
+    search.first_solution_strategy = (
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+    search.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+    search.time_limit.FromSeconds(seconds)
+
+    sol = routing.SolveWithParameters(search)
+    if sol is None:
+        raise RuntimeError("OR-Tools could not find a seed.")
+
+    # extract routes ----------------------------------------------------------
+    tours = []
+    for v in range(m):
+        idx, tour = routing.Start(v), []
+        while not routing.IsEnd(idx):
+            node = manager.IndexToNode(idx)
+            if node != depot:
+                tour.append(node + 1)          # 1-based
+            idx = sol.Value(routing.NextVar(idx))
+        if tour:                               # keep only non-empty tours
+            tours.append(tour)
+
+    # symmetry-breaking order: load ↓
+    tours.sort(key=lambda r: -sum(demand[i-1] for i in r))
+    return tours
+
+def compute_path_dist(routes, n, D):
+    distances = []
+    depot = n
+    for route in routes:
+        dist = 0
+        if route:
+            dist += D[depot][route[0]-1]  # depot to first customer
+            for i in range(len(route) - 1):
+                dist += D[route[i]-1][route[i+1]-1]
+            dist += D[route[-1]-1][n]  # last customer back to depot
+        distances.append(dist)
+    return distances
+
+####### SAT UTILIITES #######
 
 def number_of_bits(x):
     return math.floor(math.log2(x)) + 1
