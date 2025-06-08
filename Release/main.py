@@ -1,7 +1,6 @@
 import sys
 import os
-from models.MIP.MIP_Gurobi import MIP as MIP_Gurobi
-from models.MIP.MIP_PulP import MIP as MIP_PulP
+from models.MIP.MIP import MIP
 from models.SMT.SMT_model import SMT
 from models.CP.CP_model import CP
 from models.SAT.SAT_model import SAT
@@ -36,7 +35,7 @@ def run_model(argv):
         match approach:
             case 'MIP':
                 for n in instance_numbers:
-                    MIP_PulP(n)
+                    MIP(n)
             case 'SMT':
                 for n in instance_numbers:
                     SMT(n)
@@ -62,8 +61,7 @@ def run_model(argv):
                 pass
         match approach:
             case 'MIP':
-                gurobi_bool = input("Use Gurobi as solver? (y/n): ").strip().lower() == 'y'
-                MIP_Gurobi(instance_number) if gurobi_bool else MIP_PulP(instance_number)
+                MIP(instance_number)
             case 'SMT':
                 sb_bool = input("Use Symmetry Breaking constraints? (y/n): ").strip().lower() == 'y'
                 bin_search_bool = input("Use Binary Search? (y/n) [if 'n', Branch and Bound will be used]: ").strip().lower() == 'y'
@@ -82,7 +80,7 @@ def run_model(argv):
 def run_approach(approach, number):
     match approach:
         case 'MIP':
-            MIP_PulP(number)
+            MIP(number)
         case 'SMT':
             SMT(number)
         case 'CP':

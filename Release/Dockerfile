@@ -14,7 +14,7 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pip install --no-cache-dir gurobipy z3-solver minizinc pulp numpy
+RUN pip install --no-cache-dir gurobipy z3-solver minizinc pulp numpy ortools pyscipopt
 
 RUN chmod +x /app/run_model.sh
 

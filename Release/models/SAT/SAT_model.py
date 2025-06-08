@@ -6,7 +6,7 @@ import multiprocessing as mp
 from z3 import BoolVal, Bool, Implies, And, Solver, sat, is_true
 from utils.utils import *
 
-TIME_LIMIT = 300000 #in ms
+TIME_LIMIT = 292000 #in ms
 
 def json_fun(instance_number, optimal, obj, paths, time_taken, symm_break, search_strategy):
     file_path = f'res/SAT/{str(int(instance_number))}.json'
@@ -71,6 +71,7 @@ def model(m, n, l, s, D, lb, ub, time_limit, init_flag, result_queue, search_met
     max_load = sum(s)
     s_max = max(s)
     l_max = max(l)
+    bitwidth_dist = number_of_bits(ub)
 
     # Define variables
     path = [[[Bool(f'p_{courier}_{package}_{step}') for step in range(n + 2)]
@@ -79,16 +80,16 @@ def model(m, n, l, s, D, lb, ub, time_limit, init_flag, result_queue, search_met
                        for courier in range(m)]
     cl = [[Bool(f'cl_{courier}_{bit}') for bit in range(number_of_bits(max_load))]
                      for courier in range(m)]
-    cd = [[Bool(f'cdt_{courier}_{bit}') for bit in range(number_of_bits(ub))]
+    cd = [[Bool(f'cdt_{courier}_{bit}') for bit in range(bitwidth_dist)]
                   for courier in range(m)]
-    max_d = [Bool(f'max_d_{bit}') for bit in range(number_of_bits(ub))]
-    c_step_d = [[[Bool(f"cpt_{courier}_{step}_{bit}") for bit in range(number_of_bits(ub))]
+    max_d = [Bool(f'max_d_{bit}') for bit in range(bitwidth_dist)]
+    c_step_d = [[[Bool(f"cpt_{courier}_{step}_{bit}") for bit in range(bitwidth_dist)]
                    for step in range(n+1)] for courier in range(m)]
 
     # Convert integer values to binary lists
     s_b = [int_to_bool_list(s_value, number_of_bits(s_max)) for s_value in s]
     l_b = [int_to_bool_list(l_value, number_of_bits(l_max)) for l_value in l]
-    D_b = [[int_to_bool_list(D[i][j], number_of_bits(ub)) for j in range(n+1)]
+    D_b = [[int_to_bool_list(D[i][j], bitwidth_dist) for j in range(n+1)]
            for i in range(n+1)]
     
     # Exactly one package is delivered at each step
@@ -190,34 +191,50 @@ def model(m, n, l, s, D, lb, ub, time_limit, init_flag, result_queue, search_met
     result_queue.put((time.time() - start_time, obj_value, serialized_solution, search_method))
 
 # Refine the solution
-def solve_problem(m, n, l, s, D, lb, ub, time_limit, search_method="binary", symm_break=False):
+def solve_problem(m, n, l, s, D, lb, ub, time_limit, start_time, search_method="binary", symm_break=False):
     result_queue = mp.Queue()
-    init_flag = mp.Value('b', False)  
+    init_flag = mp.Value('b', False)
     process = mp.Process(target=model, args=(m, n, l, s, D, lb, ub, time_limit, init_flag, result_queue, search_method, symm_break))
     process.start()
-    
-    start_time = time.time()
-    while time.time() - start_time < time_limit / 1000:
-        time.sleep(1)
+
+    timeout_sec = time_limit / 1000 # in seconds
+
+    # Wait for init_flag 
+    while True:
         if init_flag.value:
             break
-    else:
-        process.terminate()
-        process.join()
-        return time.time() - start_time, None, None, search_method
-    
-    process.join() 
-    
+        if time.time() - start_time > timeout_sec:
+            process.terminate()
+            process.join()
+            return time.time() - start_time, None, None, search_method
+        time.sleep(0.01)
+
+    # Wait for process completion but break early if timeout exceeded
+    while True:
+        if not process.is_alive():
+            break
+        if time.time() - start_time > timeout_sec:
+            process.terminate()
+            process.join()
+            return time.time() - start_time, None, None, search_method
+        time.sleep(0.01)
+
+    process.join()
+
     try:
         result = result_queue.get_nowait()
     except Exception as e:
         print(f"Error: {e}")
         return time.time() - start_time, None, None, search_method
-    
+
     return result
 
 # Main function
 def SAT(instance_num, sb_bool=False, search_method="branch_and_bound"):
+
+    # Start count
+    start_time = time.time()
+
     # IMPORTING INSTANCE
     try:
         file_path = os.path.join('instances','dat_instances', f'inst{instance_num}.dat')
@@ -226,6 +243,7 @@ def SAT(instance_num, sb_bool=False, search_method="branch_and_bound"):
         print(f"Error reading the instance file: {e}")
         return None
     
+    # Define instance params
     m = instance["m"]
     n = instance["n"]
     l = instance["l"]
@@ -234,8 +252,9 @@ def SAT(instance_num, sb_bool=False, search_method="branch_and_bound"):
     lb = instance["lb"]
     ub = instance["ub"]
 
+    # Run the search
     time_taken, obj_value, solution, search_method = solve_problem(
-        m, n, l, s, D, lb, ub, TIME_LIMIT,
+        m, n, l, s, D, lb, ub, TIME_LIMIT, start_time,
         search_method = search_method,
         symm_break = sb_bool
     )

@@ -10,5 +10,11 @@
         "optimal": false,
         "obj": null,
         "sol": []
+    },
+    "SMT_SB_bin": {
+        "time": 300,
+        "optimal": false,
+        "obj": null,
+        "sol": []
     }
 }

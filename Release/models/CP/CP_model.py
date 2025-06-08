@@ -115,7 +115,7 @@ def reconstruct_paths(raw_paths, depot):
 
     return corrected_paths
 
-def CP(instance_number, symm_break=True, chuffed=False):
+def CP(instance_number, symm_break=False, chuffed=False):
     # Select the appropriate model
     models_file_path = model_file_path = os.path.join("models", "CP")
     if chuffed:
