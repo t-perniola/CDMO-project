@@ -64,11 +64,15 @@ constraint
 var lb..ub: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 
+% Search strategy configuration
 solve 
-%:: int_search(x, dom_w_deg, indomain_random) 
-:: int_search(x, dom_w_deg, indomain_min) 
-%:: restart_luby(100) 
-%:: relax_and_reconstruct(array1d(x), 83)
+% 1)
+%:: int_search(x, dom_w_deg, indomain_min)
+
+% 2)
+:: int_search(x, dom_w_deg, indomain_random)  
+:: restart_luby(100) 
+:: relax_and_reconstruct(array1d(x), 83)
 minimize max_distance;
   
 % Output results
