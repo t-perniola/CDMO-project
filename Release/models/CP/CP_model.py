@@ -11,72 +11,44 @@ from utils.utils import compute_bounds
 TIME_LIMIT = 300
 
 def parse_dzn(filename):
-
     data = {}
     with open(filename, 'r') as f:
         content = f.read()
-
-    # Remove comments
     content = re.sub(r'%.*', '', content)
-
-    # Match all assignments
     assignments = re.findall(r'(\w+)\s*=\s*(.*?);', content, re.DOTALL)
-
     for key, val in assignments:
         val = val.strip()
-
-        # Handle MiniZinc matrix [| ... |]
         if val.startswith('[|') and val.endswith('|]'):
-            # Rimuovo i wrapper [| e |]
-            matrix_raw = val[2:-2].strip()
-            print("Raw matrix content:")
-            print(matrix_raw)
-            
-            # Rimuovo tutti i caratteri '|' (usati come separatori di riga)
+            matrix_raw = val[1:-2].strip()
             matrix_raw_clean = matrix_raw.replace('|', '\n')
-            
-            # Ora splitto per riga (newline)
             rows = matrix_raw_clean.strip().split('\n')
-            matrix = []
-            
+            matrix = []    
             for row in rows:
                 row = row.strip()
                 if not row:
-                    continue  # salto righe vuote
-                
-                print("Processing row:")
-                print(row)
-                
-                # Estraggo solo valori numerici separati da virgola
+                    continue  
                 row_vals = []
                 for x in row.split(','):
                     x = x.strip()
                     if re.match(r'^-?\d+$', x):
                         row_vals.append(int(x))
                     else:
-                        pass
-                
+                        pass   
                 matrix.append(row_vals)
-
             data[key] = matrix
-
-        # Handle array [ ... ]
         elif val.startswith('[') and val.endswith(']'):
             arr = [int(x.strip()) for x in val[1:-1].split(',') if x.strip()]
             data[key] = arr
-
         else:
             try:
                 data[key] = int(val)
             except ValueError:
                 data[key] = val  
-
     return data
 
 def json_fun(instance_number, dist, paths, start_time, time_limit, symm_break, chuffed):
     file_path = f'res/CP/{str(int(instance_number))}.json'
     
-    # Create the directory if it doesn't exist
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     
     end_time = int(floor(time.time() - start_time))
@@ -88,14 +60,12 @@ def json_fun(instance_number, dist, paths, start_time, time_limit, symm_break, c
         "sol": paths
     }
 
-    # Check if the file exists
     if os.path.exists(file_path):
         with open(file_path, 'r') as infile:
             existing_data = json.load(infile)
     else:
         existing_data = {}
 
-    # Update the data
     model_type = "CP_gecode_noSB"
     if symm_break:
         model_type = "CP_gecode_SB"
@@ -104,7 +74,6 @@ def json_fun(instance_number, dist, paths, start_time, time_limit, symm_break, c
     
     existing_data[model_type] = json_dict
 
-    # Write updated data to file
     with open(file_path, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4)
 
@@ -113,10 +82,9 @@ def create_paths(x):
     Given the solution in output of the model,
     extract each courier's raw path
     '''
-                
-    # Convert MiniZinc array to Python-friendly format
+
     raw_paths = []
-    m, n = len(x), len(x[0])  # Get dimensions (couriers x nodes)
+    m, n = len(x), len(x[0])  
 
     for i in range(m):
         raw_paths.append([x[i][j] for j in range(n)]) 
@@ -185,7 +153,10 @@ def CP(instance_number, symm_break=True, chuffed=False):
     D = data["D"]
     
     lb_old = 0
-    ub_old = float('inf')  # or some large number or None if allowed
+    ub_old = 10000  # or some large number or None if allowed
+
+    # Start timing
+    start_time = time.time()
 
     lb, ub = compute_bounds(m, n, l, s, D, lb_old, ub_old)
 
@@ -195,8 +166,6 @@ def CP(instance_number, symm_break=True, chuffed=False):
     # Set timeout
     timeout = timedelta(seconds=TIME_LIMIT)
 
-    # Start timing
-    start_time = time.time()
     # Solve the model
     try:
         result = instance.solve(timeout=timeout)
@@ -243,9 +212,9 @@ def CP(instance_number, symm_break=True, chuffed=False):
     else:
         print("No solution found")
 
-
 if __name__ == "__main__":
-    instance_number = '05'         
-    symm_break = False
+    instance_number = '17'         
+    symm_break = True
     chuffed = False
     CP(instance_number, symm_break=symm_break, chuffed=chuffed)
+# 1103
