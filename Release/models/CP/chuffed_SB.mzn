@@ -13,10 +13,6 @@ int: ub;
 
 % Variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 array[1..m, 1..n+1] of var 1..n+1: x;
-
-% symmetry breaking variable
-%array[1..m, 1..n] of var 0..1: b_y;
-
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
 array[1..m] of var n+1..total: max_distance_per_courier; % Maximum distance traveled by each courier
 
@@ -48,20 +44,6 @@ constraint
     );
 
 
-% Channeling 
-%constraint forall(i in 1..m, j in 1..n)(x[i, j] != j <-> b_y[i, j] = 1)::domain_propagation;
-
-  
-% Symmetry Breaking constraints %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Ensuring exactly one 1 per column in b_y for the first n elements
-
-% More size to bigger courier
-%constraint symmetry_breaking_constraint(forall(c1 in 1..m-1, c2 in c1+1..m where c2>c1 /\ l[c1]>=l[c2])(sum(j in 1..n)(b_y[c1,j]*s[j]) >= sum(j in 1..n)(b_y[c2,j]*s[j])));
-
-% lex_lesseq
-%constraint symmetry_breaking_constraint(forall(c1 in 1..m-1, c2 in c1+1..m where l[c1]==l[c2] /\ c2<c1)(lex_lesseq([b_y[c2,j] | j in 1..n],[b_y[c1,j1] | j1 in 1..n])));
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
 constraint
     forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
@@ -84,8 +66,8 @@ constraint
 var lb..ub: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
 
 
+% Best configuration found empirically
 solve 
-%:: int_search(x, first_fail, indomain_min)
 :: int_search(x, random_order, indomain_min)
 :: restart_luby(100) 
 minimize max_distance;
