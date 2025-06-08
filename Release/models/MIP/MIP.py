@@ -323,7 +323,7 @@ def MIP(instance_number:str):
     Args:
         instance_number (int): The index of the instance to solve, named inst{instance_number}.dat
     """
-    file_path = os.path.join('Instances', "dat_instances", str(f'inst{instance_number}.dat'))
+    file_path = os.path.join('instances', "dat_instances", str(f'inst{instance_number}.dat'))
     parsed_data = utils.read_dat_file(file_path)
 
     m = parsed_data['m']
