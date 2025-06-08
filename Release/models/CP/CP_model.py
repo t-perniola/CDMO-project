@@ -211,10 +211,3 @@ def CP(instance_number, symm_break=True, chuffed=False):
             print("Solution attribute not found.")
     else:
         print("No solution found")
-
-if __name__ == "__main__":
-    instance_number = '17'         
-    symm_break = True
-    chuffed = False
-    CP(instance_number, symm_break=symm_break, chuffed=chuffed)
-# 1103
