@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime
-import utils
+from utils.utils import read_dat_file, clarke_wright_seed, ortools_seed
 import json
 import os
 import copy
@@ -322,7 +322,7 @@ def MIP(instance_number:str):
         instance_number (int): The index of the instance to solve, named inst{instance_number}.dat
     """
     file_path = os.path.join('Instances', str(f'inst{instance_number}.dat'))
-    parsed_data = utils.read_dat_file(file_path)
+    parsed_data = read_dat_file(file_path)
 
     m = parsed_data['m']
     n = parsed_data['n']
@@ -335,10 +335,10 @@ def MIP(instance_number:str):
     safe_bound = 10
     
     try:
-        seed = utils.ortools_seed(n, m, s, l, D)
+        seed = ortools_seed(n, m, s, l, D)
     except RuntimeError:
         # Always guarantees to find a seed
-        seed = utils.clarke_wright_seed(m, n, s, l, D)
+        seed = clarke_wright_seed(m, n, s, l, D)
     
     presolving_time = datetime.now() - starting_time
 
