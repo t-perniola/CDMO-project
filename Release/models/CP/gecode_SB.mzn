@@ -1,8 +1,6 @@
 include "globals.mzn";
 include "gecode.mzn"; 
 
-% predicate subcircuit(array [$$E] of var $$E: x)
-% bin_packing_load
 
 % Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int: m; 
@@ -10,20 +8,17 @@ int: n;
 array[1..m] of int: l;     
 array[1..n] of int: s;     
 array[1..n+1, 1..n+1] of int: D;  
+int: lb; 
+int: ub;
 
 % Variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% x[i, j1] = j2 means that the ith courier will go from the j1th node to the j2th node
-% if x[i, k] = k then the courier i is not going to visit the node k
 array[1..m, 1..n+1] of var 1..n+1: x;
 
-% symmetry breaking variable
+% channeling variable, in this case is written as a possibility but not used because the number of constraints grow too much and the solving procedure become slower
 %array[1..m, 1..n] of var 0..1: b_y;
 
-% aggiustare la maxdistance -> fare un preprocessing
 int: total = sum(i in 1..n+1, j in 1..n+1)(D[i,j]);
 array[1..m] of var n+1..total: max_distance_per_courier; % Maximum distance traveled by each courier
-
-
 
 
 % Constraints %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,8 +38,6 @@ constraint forall(i in 1..m)(x[i,n+1] != n+1);
 constraint forall(i in 1..m)(count(j in 1..n)(x[i, j] == n+1) == 1);
 
 
-    
-% aggiustare i bounds per i load -> fare un preprocessing  ----  bin_packing_load
 constraint
     forall(i in 1..m)(
         sum(j1 in 1..n)(
@@ -53,7 +46,7 @@ constraint
     );
 
 
-% Channeling 
+% Channeling contraints
 %constraint forall(i in 1..m, j in 1..n)(x[i, j] != j <-> b_y[i, j] = 1)::domain_propagation;
 
   
@@ -68,7 +61,6 @@ constraint
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%% SYMMETRY BREAKING %%%%%%%%%%
-% ora è peggiorato questo
 
 constraint
     forall(i in 1..m-1, z in i+1..m where z > i /\ l[i] >= l[z])(
@@ -89,12 +81,13 @@ constraint
     );
         
                   
-var int: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
+var lb..ub: max_distance = max(i in 1..m)(max_distance_per_courier[i]);
+
 
 solve 
 :: int_search(x, dom_w_deg, indomain_random) 
 %:: int_search(x, first_fail, indomain_min)
-%:: int_search(b_y, first_fail, indomain_min)
+%:: int_search(b_y, first_fail, indomain_min) % if we use channeling
 :: restart_luby(100) 
 :: relax_and_reconstruct(array1d(x), 83)
 minimize max_distance;
