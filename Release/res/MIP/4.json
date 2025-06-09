@@ -1,1 +1,1 @@
-{"MIP": {"time": 300, "optimal": false, "obj": null, "sol": []}}
+{"MIP": {"time": 8, "optimal": true, "obj": 220, "sol": [[2, 4, 7], [], [], [1], [], [9, 8, 10], [], [5, 3, 6]]}}
